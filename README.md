@@ -12,7 +12,7 @@ Aplicación Android nativa de Sergiotech para organizar compras, justificantes, 
 - Adaptadores Cloudflare: sesiones cifradas Keystore, códigos de correo, Google, sincronización incremental, conflictos y descarga íntegra bajo demanda.
 - Worker con D1/R2 privados, autorización por propietario, cuotas e idempotencia; pruebas locales sin credenciales.
 
-**El MVP cloud no está terminado.** D1 `tickettracker` y R2 `tickettracker-documents` están creados en jurisdicción UE, pero el esquema, secretos y Worker no se han desplegado. La APK predeterminada funciona en modo local y muestra la configuración pendiente. Desinstalar borra los datos del dispositivo: conserva una exportación. ZIP restore y recuperación real entre instalaciones siguen pendientes.
+**El MVP cloud no está terminado.** El Worker está publicado con D1 `tickettracker` y R2 `tickettracker-documents` privados en jurisdicción UE. Correo y operaciones D1/R2 tienen una prueba HTTPS real con un documento sintético; la APK incluye la URL y audiencia Google públicas del piloto. Google desde Android y la recuperación entre instalaciones siguen pendientes. Desinstalar borra los datos del dispositivo: conserva una exportación hasta validar la recuperación.
 
 La decisión posterior del propietario sustituye Supabase por D1 + Worker + R2. El VPS y los otros proyectos no se modifican. El código de Google requiere clientes OAuth válidos y huellas de firma; iniciar sesión no concede acceso a Gmail. El OCR de PDF procesa la primera página y conserva el original completo. Recorte, perspectiva, multipágina y motor jurídico siguen en el roadmap.
 
@@ -34,9 +34,9 @@ En Windows, el script selecciona el JDK de Android Studio y usa `.local/` para G
 ./gradlew :app:assembleRelease
 ```
 
-La release está optimizada y sin firma de distribución. La APK debug se genera en `app/build/outputs/apk/debug/app-debug.apk`. API 36 se ha probado localmente; CI prepara dispositivos API 29 y 36.
+La release está optimizada y sin firma de distribución. La APK debug se genera en `app/build/outputs/apk/debug/app-debug.apk`. API 36 se ha probado localmente; CI ha pasado en API 29 y 36.
 
-Tras el despliegue aprobado, pasar los identificadores **públicos**: `-PtickettrackerApiUrl=https://…` y `-PtickettrackerGoogleClientId=…`. El segundo es el cliente web de audiencia del token, no un secreto OAuth. Nunca introducir claves Cloudflare, Resend, S3 ni administrativas en el APK.
+`gradle.properties` contiene la configuración **pública** del piloto. Puede sustituirse con `-PtickettrackerApiUrl=https://…` y `-PtickettrackerGoogleClientId=…`; para una compilación solo local, pasar ambas propiedades vacías. El segundo es el cliente web de audiencia del token. Google debug solo admite la huella registrada en [GOOGLE_AUTH.md](docs/integrations/GOOGLE_AUTH.md); otra firma necesita su cliente Android. Nunca introducir claves Cloudflare, Resend, S3 ni administrativas en el APK.
 
 ## API y estructura
 
@@ -52,6 +52,6 @@ Tras el despliegue aprobado, pasar los identificadores **públicos**: `-Ptickett
 
 Desde `backend/cloudflare`, con Node 22+: `npm ci`, `npm test`, `npm run format:check` y `npm run deploy:check`. No hacen falta credenciales para los tests. No se despliega desde CI.
 
-El [estado central](docs/DELIVERY_STATUS.md) distingue código, pruebas locales y producción. El [inventario](docs/integrations/CLOUDFLARE_DEPLOYMENT.md) concreta el despliegue pendiente de aprobación. [ADR 0002](docs/architecture/ADR/0002_cloudflare_d1.md) documenta la sustitución de Supabase. La especificación de origen conserva el concepto del Word y señala las decisiones posteriores; el Word y las credenciales quedan fuera de Git.
+El [estado central](docs/DELIVERY_STATUS.md) distingue código, pruebas locales y producción. El [inventario aprobado](docs/integrations/CLOUDFLARE_DEPLOYMENT.md) y la [validación real](docs/integrations/PRODUCTION_VALIDATION.md) registran el despliegue y sus límites. [ADR 0002](docs/architecture/ADR/0002_cloudflare_d1.md) documenta la sustitución de Supabase. La especificación de origen conserva el concepto del Word y señala las decisiones posteriores; el Word y las credenciales quedan fuera de Git.
 
 Nombre y símbolo provisionales. Todos los derechos reservados por el propietario; no se asigna una licencia de software libre sin su decisión.

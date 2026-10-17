@@ -8,6 +8,6 @@ D1 no aporta Auth ni RLS. El Worker autoriza todas las consultas/objetos por UUI
 
 Una compra viaja como agregado JSON, con líneas y productos de UUID distintos; Room continúa normalizado. Esto reduce operaciones de D1 sin mezclar conceptos del dominio. Compare-and-swap, feed e idempotencia se confirman en un batch transaccional. R2 se verifica antes de marcar un documento sincronizado. No hay eliminación automática de originales.
 
-El bucket Standard privado y la base D1 vacía se crearon con jurisdicción UE, según la autorización anterior del propietario. Aplicar DDL, configurar secretos y publicar el Worker queda sujeto al inventario de producción. La jurisdicción de D1/R2 no implica que todo el procesamiento de Worker/Resend ocurra exclusivamente en la UE.
+El bucket Standard privado y la base D1 se crearon con jurisdicción UE. El propietario aprobó posteriormente el inventario de producción: esquema, secretos y Worker ya están desplegados; la evidencia y sus límites están en integrations/PRODUCTION_VALIDATION.md. La jurisdicción de D1/R2 no implica que todo el procesamiento de Worker/Resend ocurra exclusivamente en la UE.
 
 Fuentes: [D1](https://developers.cloudflare.com/d1/), [batches transaccionales](https://developers.cloudflare.com/d1/worker-api/d1-database/), [R2](https://developers.cloudflare.com/r2/), [validación Google](https://developers.google.com/identity/sign-in/android/backend-auth).

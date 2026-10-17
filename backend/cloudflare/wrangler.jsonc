@@ -21,8 +21,8 @@
   ],
   "vars": {
     "EMAIL_FROM": "TicketTracker <tickettracker@contact.sergiotech.es>",
-    "GOOGLE_CLIENT_ID": "",
-    "GOOGLE_ANDROID_CLIENT_ID": "",
+    "GOOGLE_CLIENT_ID": "959037289403-5o2stqqn9uv38e2uorrcnqq7qi1igmta.apps.googleusercontent.com",
+    "GOOGLE_ANDROID_CLIENT_ID": "959037289403-bejhrcq3ct5hi05mekmmqehtfj45h1qj.apps.googleusercontent.com",
     "MAX_DOCUMENT_BYTES": "26214400",
     "MAX_USER_BYTES": "104857600",
     "MAX_TOTAL_BYTES": "1073741824",
