@@ -2,14 +2,15 @@
 
 Aplicación Android nativa de Sergiotech para organizar compras, justificantes, garantías y devoluciones. Kotlin, Compose, Material 3. Paquete `es.sergiotech.tickettracker`, Android 10/API 29 o superior; objetivo API 36.
 
-## Incremento 0.1
+## Incremento 0.1.1
 
 - Alta, edición, borrado lógico y búsqueda de compras con artículos y fechas independientes.
 - Room observable, importes enteros, revisiones y outbox transaccional.
 - CameraX, SAF, compartir PDF/imagen desde otras apps y OCR local ML Kit.
 - Originales privados, miniaturas, SHA-256, duplicados por propietario y límite de 25 MiB.
 - Temas, español/inglés, recordatorios opt-in y exportación ZIP con manifiesto.
-- Iconos aportados por el propietario, paleta turquesa y resumen de compras/fechas con navegación central; [referencia visual](docs/design/BRAND.md).
+- Inicio compacto según la imagen del propietario: tarjetas turquesa/violeta/naranja, cápsulas, filas y navegación con «+» central; [referencia visual](docs/design/BRAND.md).
+- Garantías activas, críticas (30 días) y devoluciones con fecha manual vigente, con filtros pulsables. Suscripciones/seguros manuales guardados solo en el móvil e incluidos en el ZIP; sincronización y avisos de estos registros pendientes.
 - Adaptadores Cloudflare: sesiones cifradas Keystore, códigos de correo, Google, sincronización incremental, conflictos y descarga íntegra bajo demanda.
 - Worker con D1/R2 privados, autorización por propietario, cuotas e idempotencia; pruebas locales sin credenciales.
 
@@ -37,6 +38,8 @@ En Windows, el script selecciona el JDK de Android Studio y usa `.local/` para G
 
 La release está optimizada y sin firma de distribución. La APK debug se genera en `app/build/outputs/apk/debug/app-debug.apk`. API 36 se ha probado localmente; CI ha pasado en API 29 y 36.
 
+La APK firmada para la prueba personal se entrega en `entregas/TicketTracker-0.1.1-pruebas.apk` (excluida de Git). Instrucciones y límites en [Prueba personal](docs/testing/PERSONAL_TESTING.md).
+
 `gradle.properties` contiene la configuración **pública** del piloto. Puede sustituirse con `-PtickettrackerApiUrl=https://…` y `-PtickettrackerGoogleClientId=…`; para una compilación solo local, pasar ambas propiedades vacías. El segundo es el cliente web de audiencia del token. Google debug solo admite la huella registrada en [GOOGLE_AUTH.md](docs/integrations/GOOGLE_AUTH.md); otra firma necesita su cliente Android. Nunca introducir claves Cloudflare, Resend, S3 ni administrativas en el APK.
 
 ## API y estructura
@@ -44,7 +47,7 @@ La release está optimizada y sin firma de distribución. La APK debug se genera
 | Carpeta | Responsabilidad |
 | --- | --- |
 | domain | Kotlin sin dependencias Android ni proveedores; modelos, contratos y reglas |
-| core/database | Room normalizado, migraciones 1→2→3, outbox, cursores y conflictos |
+| core/database | Room normalizado, migraciones 1→2→3→4, contratos locales, outbox, cursores y conflictos |
 | core/documents | Archivos privados, OCR, límites e integridad |
 | core/designsystem | Material 3 |
 | app | Compose, ViewModels, adaptadores, Keystore, sincronización y trabajos |

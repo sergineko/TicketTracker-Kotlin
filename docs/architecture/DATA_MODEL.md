@@ -10,8 +10,9 @@
 | Cursor / Conflict | Cursor por propietario; versión remota pendiente de decisión por agregado |
 | Profile / Identity | UUID interno y enlaces email/Google; independiente del proveedor de login |
 | Session / Challenge | HMAC de token o código, expiración y consumo; no se guarda el secreto en claro en D1 |
+| TrackedContract (solo Room) | UUID, propietario, tipo suscripción/seguro, nombre/proveedor, importe entero/moneda, periodo, próxima fecha civil, activo, revisión y tombstone |
 
-Room v3 tiene migraciones 1→2→3 no destructivas y esquemas JSON exportados. Añade revisión remota documental, cursores y conflictos. Se valida abriendo bases creadas con los esquemas v1 y v2 mediante la implementación real de Room v3.
+Room v4 tiene migraciones 1→2→3→4 no destructivas y esquemas JSON exportados. La versión 4 añade contratos locales por propietario sin modificar compras o documentos. Se valida abriendo bases creadas con los esquemas v1/v2/v3 mediante la implementación real de Room v4. El ZIP v2 añade contratos locales al manifiesto. No hay restaurador ZIP integrado.
 
 D1 usa una base exclusiva y once tablas `tt_`. `tt_records` conserva agregados de compra/documento con sus revisiones, `tt_changes` el feed ordenado por commits serializados de SQLite, `tt_mutations` la idempotencia y `tt_variants` el propietario, clave R2 opaca e integridad. Las líneas y productos siguen siendo entidades distintas dentro del agregado. El cliente no accede directamente a D1.
 

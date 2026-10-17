@@ -5,13 +5,15 @@ La especificación de origen es `SOURCE_SPECIFICATION.md`, transcrita del Word. 
 ## Requisitos de este incremento
 
 - Proyecto compilable API 29/36, Kotlin, Compose Material 3, Hilt, Gradle DSL y catálogo de versiones.
-- Navegación Inicio/Compras/Documentos/Perfil; sin inventario simulado.
+- Navegación Inicio/Productos/Tickets/Más y botón central para registrar/escanear/importar; sin inventario simulado.
 - Compras manuales con múltiples artículos, edición, borrado lógico y búsqueda.
 - Room observable, transacciones, revisiones y outbox persistente; identidad local estable.
 - Importación de imagen/PDF, OCR local, confirmación editable, conservación de originales e integridad.
 - Fechas manuales de garantía y devolución independientes, alertas y preferencias.
 - Exportación portátil y estado cloud honesto.
 - Documentación y CI; pruebas unitarias e instrumentadas con errores y conflictos.
+- Rediseño según la referencia aportada: tarjetas Productos y garantías, Suscripciones y Seguros, filtros y filas compactas. Contadores Garantía activa, Crítica (30 días) y Devoluciones posibles con fecha manual vigente; las categorías pueden solaparse.
+- Registro manual local de suscripciones/seguros con aislamiento por cuenta, revisiones, borrado lógico y exportación. Su sincronización y avisos quedan pendientes (ADR 0003).
 
 ## Criterio del MVP comercial completo
 

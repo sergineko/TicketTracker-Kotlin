@@ -1,6 +1,6 @@
 <resources>
     <string name="app_name">TicketTracker</string>
-    <string name="brand_subtitle">Your purchases and dates, at hand.</string>
+    <string name="brand_subtitle">Your digital and physical life, protected.</string>
     <string name="dashboard_title">Products and warranties</string>
     <plurals name="dashboard_total">
         <item quantity="one">%1$d saved product</item>
@@ -14,7 +14,7 @@
     <string name="dashboard_documents_body">Your receipts in one place</string>
     <string name="search_purchases">Search purchases</string>
     <string name="home">Home</string>
-    <string name="nav_purchases">Purchases</string>
+    <string name="nav_purchases">Products</string>
     <string name="nav_documents">Files</string>
     <string name="purchases">Purchases</string>
     <string name="documents">Documents</string>

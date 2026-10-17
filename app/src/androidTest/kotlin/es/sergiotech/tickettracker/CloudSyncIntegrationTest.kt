@@ -8,6 +8,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import es.sergiotech.tickettracker.core.database.TicketDatabase
 import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
 import es.sergiotech.tickettracker.data.LocalPreferences
+import es.sergiotech.tickettracker.data.RoomCoverageRepository
 import es.sergiotech.tickettracker.data.RoomPurchaseRepository
 import es.sergiotech.tickettracker.data.cloud.*
 import es.sergiotech.tickettracker.domain.*
@@ -78,8 +79,20 @@ class CloudSyncIntegrationTest {
     @Test
     fun sessionEncryptionAndAdoptionKeepAccountsSeparate() = runTest {
         repository.save(purchase())
+        val coverage = RoomCoverageRepository(db, sessions)
+        coverage.save(
+            TrackedContract(
+                kind = ContractKind.INSURANCE,
+                name = "Home",
+                provider = "",
+                amount = Money(5999),
+                period = BillingPeriod.YEARLY,
+                nextDate = LocalDate.of(2027, 1, 1),
+            )
+        )
         val anonymous = sessions.identity.first().id
         sessions.activate(session)
+        assertEquals(owner, coverage.observe().first().contracts.single().ownerId)
         assertTrue(db.tickets().outbox(anonymous).isEmpty())
         assertEquals(owner, repository.observePurchases().first().single().ownerId)
         assertFalse(
@@ -93,8 +106,10 @@ class CloudSyncIntegrationTest {
             )
         assertEquals(session, reopened.current())
         sessions.logoutLocally()
+        assertTrue(coverage.observe().first().contracts.isEmpty())
         assertTrue(repository.observePurchases().first().isEmpty())
         sessions.activate(session.copy(userId = newId()))
+        assertTrue(coverage.observe().first().contracts.isEmpty())
         assertTrue(repository.observePurchases().first().isEmpty())
         assertEquals(1, db.tickets().outbox(owner).size)
     }

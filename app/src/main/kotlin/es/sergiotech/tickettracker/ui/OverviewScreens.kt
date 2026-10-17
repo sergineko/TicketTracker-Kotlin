@@ -60,12 +60,15 @@ fun PurchasesScreen(state: TrackerState, add: () -> Unit, detail: (String) -> Un
                             when (filter) {
                                 1 ->
                                     purchase.lines.any {
-                                        deadlineState(it.product.returnEnd, today, 7) ==
-                                            DeadlineState.ENDING_SOON
+                                        it.product.matches(ProductFilter.RETURNS, today)
                                     }
                                 2 ->
                                     purchase.lines.any {
                                         it.product.warrantyEnd?.let { end -> end >= today } == true
+                                    }
+                                3 ->
+                                    purchase.lines.any {
+                                        it.product.matches(ProductFilter.CRITICAL, today)
                                     }
                                 else -> true
                             }
@@ -73,10 +76,10 @@ fun PurchasesScreen(state: TrackerState, add: () -> Unit, detail: (String) -> Un
                 }
         }
     LazyColumn(
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item { PageHeading(label(R.string.purchases)) }
+        item { PageHeading(label(R.string.my_products)) }
         item {
             OutlinedTextField(
                 query,
@@ -93,7 +96,12 @@ fun PurchasesScreen(state: TrackerState, add: () -> Unit, detail: (String) -> Un
                 Modifier.horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                listOf(R.string.all_filter, R.string.returns_filter, R.string.warranties_filter)
+                listOf(
+                        R.string.all_filter,
+                        R.string.possible_returns,
+                        R.string.active_warranty,
+                        R.string.critical_warranty,
+                    )
                     .forEachIndexed { index, id ->
                         FilterChip(filter == index, { filter = index }, { Text(label(id)) })
                     }
@@ -110,7 +118,21 @@ fun PurchasesScreen(state: TrackerState, add: () -> Unit, detail: (String) -> Un
             }
         else if (filtered.isEmpty())
             item { Text(label(R.string.no_results), Modifier.padding(vertical = 32.dp)) }
-        items(filtered, key = { it.id }) { PurchaseCard(it) { detail(it.id) } }
+        val productFilter =
+            listOf(
+                ProductFilter.ALL,
+                ProductFilter.RETURNS,
+                ProductFilter.WARRANTY,
+                ProductFilter.CRITICAL,
+            )[filter]
+        items(
+            filtered.flatMap { p ->
+                p.lines.filter { it.product.matches(productFilter, today) }.map { p to it.product }
+            },
+            key = { it.second.id },
+        ) { (purchase, product) ->
+            ProductRow(purchase, product) { detail(purchase.id) }
+        }
         item { Spacer(Modifier.height(80.dp)) }
     }
 }

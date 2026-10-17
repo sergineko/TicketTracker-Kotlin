@@ -141,6 +141,7 @@ class CloudSessionStore(
             db.tickets().adoptPurchases(fromOwner, toOwner)
             db.tickets().adoptDocuments(fromOwner, toOwner)
             db.tickets().adoptOutbox(fromOwner, toOwner)
+            db.coverage().adoptContracts(fromOwner, toOwner)
         }
     }
 

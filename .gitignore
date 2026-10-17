@@ -12,6 +12,9 @@ local.properties
 !.env.example
 *.docx
 .local/
+/entregas/
+*.apk
+*.aab
 captures/
 *.log
 node_modules/

@@ -308,7 +308,7 @@ private fun Field(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DateField(
+internal fun DateField(
     value: String,
     change: (String) -> Unit,
     labelId: Int,

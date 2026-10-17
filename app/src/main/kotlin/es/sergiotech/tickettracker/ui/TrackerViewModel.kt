@@ -26,6 +26,7 @@ data class TrackerState(
     val preferences: AppPreferences = AppPreferences(),
     val loading: Boolean = true,
     val loadError: Boolean = false,
+    val contracts: List<TrackedContract> = emptyList(),
 )
 
 data class LineDraft(
@@ -85,6 +86,7 @@ constructor(
     private val preferences: LocalPreferences,
     private val documents: PrivateDocumentStore,
     private val exporter: VaultExporter,
+    private val coverage: CoverageRepository,
 ) : ViewModel() {
     private val _state = MutableStateFlow(TrackerState())
     val state = _state.asStateFlow()
@@ -112,8 +114,16 @@ constructor(
                         repository.observeDocuments(),
                         repository.observePendingCount(),
                         preferences.preferences,
-                    ) { purchases, documents, pending, prefs ->
-                        TrackerState(purchases, documents, pending, prefs, loading = false)
+                        coverage.observe(),
+                    ) { purchases, documents, pending, prefs, protection ->
+                        TrackerState(
+                            purchases,
+                            documents,
+                            pending,
+                            prefs,
+                            loading = false,
+                            contracts = protection.contracts,
+                        )
                     }
                     .catch { error ->
                         if (error is CancellationException) throw error
@@ -122,6 +132,11 @@ constructor(
                     .collect { _state.value = it }
             }
     }
+
+    suspend fun saveContract(contract: TrackedContract) = coverage.save(contract)
+
+    suspend fun archiveContract(contract: TrackedContract) =
+        coverage.archive(contract.id, contract.revision)
 
     fun startEditor(id: String?) {
         val purchase = state.value.purchases.find { it.id == id }

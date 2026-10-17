@@ -6,14 +6,20 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
@@ -29,10 +35,12 @@ import androidx.navigation.compose.*
 import es.sergiotech.tickettracker.R
 import es.sergiotech.tickettracker.core.designsystem.TicketTheme
 import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
+import es.sergiotech.tickettracker.domain.ContractKind
 import es.sergiotech.tickettracker.domain.ReceiptDocument
 import es.sergiotech.tickettracker.notifications.DeadlineReminderWorker
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TicketTrackerApp(
     vm: TrackerViewModel,
@@ -51,6 +59,7 @@ fun TicketTrackerApp(
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val snackbar = remember { SnackbarHostState() }
+    var addMenu by remember { mutableStateOf(false) }
     val topRoutes = listOf("home", "purchases", "documents", "profile")
     val import =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -142,65 +151,84 @@ fun TicketTrackerApp(
                 snackbarHost = { SnackbarHost(snackbar) },
                 bottomBar = {
                     if (route in topRoutes)
-                        NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                            val icons =
-                                listOf(
-                                    Icons.Outlined.Home,
-                                    Icons.Outlined.ShoppingBag,
-                                    Icons.Outlined.FolderOpen,
-                                    Icons.Outlined.PersonOutline,
-                                )
-                            val titles =
-                                listOf(
-                                    R.string.home,
-                                    R.string.nav_purchases,
-                                    R.string.nav_documents,
-                                    R.string.profile,
-                                )
-                            topRoutes.forEachIndexed { i, destination ->
-                                if (i == 2) {
+                        Box {
+                            NavigationBar(
+                                modifier =
+                                    Modifier.background(
+                                        MaterialTheme.colorScheme.surface,
+                                        RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                                    ),
+                                containerColor = Color.Transparent,
+                                tonalElevation = 0.dp,
+                            ) {
+                                val icons =
+                                    listOf(
+                                        Icons.Outlined.Home,
+                                        Icons.Outlined.Inventory2,
+                                        Icons.Outlined.Description,
+                                        Icons.Outlined.MoreHoriz,
+                                    )
+                                val titles =
+                                    listOf(
+                                        R.string.home,
+                                        R.string.nav_purchases,
+                                        R.string.nav_documents,
+                                        R.string.more,
+                                    )
+                                topRoutes.forEachIndexed { i, destination ->
+                                    if (i == 2) Spacer(Modifier.width(68.dp))
+                                    NavigationBarItem(
+                                        route == destination,
+                                        { top(destination) },
+                                        icon = { Icon(icons[i], null) },
+                                        label = {
+                                            Text(
+                                                label(titles[i]),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        },
+                                        colors =
+                                            NavigationBarItemDefaults.colors(
+                                                selectedIconColor =
+                                                    MaterialTheme.colorScheme.primary,
+                                                selectedTextColor =
+                                                    MaterialTheme.colorScheme.primary,
+                                                indicatorColor = Color.Transparent,
+                                            ),
+                                        modifier = Modifier.testTag("nav-$destination"),
+                                    )
+                                }
+                            }
+                            if (!state.loading && !state.loadError)
+                                Surface(
+                                    onClick = { addMenu = true },
+                                    modifier =
+                                        Modifier.align(Alignment.TopCenter)
+                                            .offset(y = (-12).dp)
+                                            .size(64.dp)
+                                            .testTag("add-menu"),
+                                    shape = CircleShape,
+                                    color = Color(0xFF007A81),
+                                    contentColor = Color.White,
+                                    shadowElevation = 7.dp,
+                                    border = BorderStroke(2.dp, Color(0xFFA4F2EA)),
+                                ) {
                                     Box(
-                                        Modifier.width(68.dp),
+                                        Modifier.background(
+                                            Brush.linearGradient(
+                                                listOf(Color(0xFF14BFC0), Color(0xFF006771))
+                                            )
+                                        ),
                                         contentAlignment = Alignment.Center,
                                     ) {
-                                        if (!state.loading && !state.loadError)
-                                            FloatingActionButton(
-                                                onClick = { startEditor() },
-                                                modifier =
-                                                    Modifier.size(54.dp).testTag("add-purchase"),
-                                                shape = CircleShape,
-                                                containerColor = MaterialTheme.colorScheme.primary,
-                                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                                            ) {
-                                                Icon(
-                                                    Icons.Outlined.Add,
-                                                    label(R.string.add_purchase),
-                                                    Modifier.size(30.dp),
-                                                )
-                                            }
+                                        Icon(
+                                            Icons.Outlined.Add,
+                                            label(R.string.add_menu),
+                                            Modifier.size(35.dp),
+                                        )
                                     }
                                 }
-                                NavigationBarItem(
-                                    route == destination,
-                                    { top(destination) },
-                                    icon = { Icon(icons[i], null) },
-                                    label = {
-                                        Text(
-                                            label(titles[i]),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    },
-                                    colors =
-                                        NavigationBarItemDefaults.colors(
-                                            selectedIconColor = MaterialTheme.colorScheme.primary,
-                                            selectedTextColor = MaterialTheme.colorScheme.primary,
-                                            indicatorColor =
-                                                MaterialTheme.colorScheme.primaryContainer,
-                                        ),
-                                    modifier = Modifier.testTag("nav-$destination"),
-                                )
-                            }
                         }
                 },
             ) { padding ->
@@ -222,11 +250,34 @@ fun TicketTrackerApp(
                                 HomeScreen(
                                     state,
                                     { startEditor() },
-                                    { nav.navigate("scanner") },
-                                    ::startImport,
                                     { top("purchases") },
-                                    { top("documents") },
+                                    { nav.navigate("contracts/${it.name}") },
+                                    { nav.navigate("contract/${it.kind.name}/${it.id}") },
                                     { nav.navigate("detail/$it") },
+                                )
+                            }
+                            composable("contracts/{kind}") { backStack ->
+                                val kind =
+                                    ContractKind.valueOf(backStack.arguments!!.getString("kind")!!)
+                                ContractsScreen(
+                                    kind,
+                                    state.contracts.filter { it.kind == kind },
+                                    { nav.popBackStack() },
+                                    { nav.navigate("contract/${kind.name}/new") },
+                                    { nav.navigate("contract/${kind.name}/${it.id}") },
+                                )
+                            }
+                            composable("contract/{kind}/{id}") { backStack ->
+                                val kind =
+                                    ContractKind.valueOf(backStack.arguments!!.getString("kind")!!)
+                                val id = backStack.arguments!!.getString("id")!!
+                                ContractEditorScreen(
+                                    kind,
+                                    state.contracts.find { it.id == id },
+                                    id == "new",
+                                    { nav.popBackStack() },
+                                    vm::saveContract,
+                                    vm::archiveContract,
                                 )
                             }
                             composable("purchases") {
@@ -302,6 +353,71 @@ fun TicketTrackerApp(
                         }
                 }
             }
+            if (addMenu)
+                ModalBottomSheet(onDismissRequest = { addMenu = false }) {
+                    Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
+                        Text(
+                            label(R.string.add_menu),
+                            style = MaterialTheme.typography.titleLarge,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                        ListItem(
+                            headlineContent = { Text(label(R.string.manual_entry)) },
+                            leadingContent = { Icon(Icons.Outlined.Inventory2, null) },
+                            modifier =
+                                Modifier.testTag("add-purchase")
+                                    .then(Modifier.fillMaxWidth())
+                                    .clickable {
+                                        addMenu = false
+                                        startEditor()
+                                    },
+                        )
+                        ListItem(
+                            headlineContent = { Text(label(R.string.scan)) },
+                            leadingContent = { Icon(Icons.Outlined.DocumentScanner, null) },
+                            modifier =
+                                Modifier.clickable {
+                                    addMenu = false
+                                    nav.navigate("scanner")
+                                },
+                        )
+                        ListItem(
+                            headlineContent = { Text(label(R.string.import_document)) },
+                            leadingContent = { Icon(Icons.Outlined.FileUpload, null) },
+                            modifier =
+                                Modifier.clickable {
+                                    addMenu = false
+                                    startImport()
+                                },
+                        )
+                        ContractKind.entries.forEach { kind ->
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        label(
+                                            if (kind == ContractKind.SUBSCRIPTION)
+                                                R.string.subscription_record
+                                            else R.string.insurance_record
+                                        )
+                                    )
+                                },
+                                leadingContent = {
+                                    Icon(
+                                        if (kind == ContractKind.SUBSCRIPTION)
+                                            Icons.Outlined.EventRepeat
+                                        else Icons.Outlined.Shield,
+                                        null,
+                                    )
+                                },
+                                modifier =
+                                    Modifier.clickable {
+                                        addMenu = false
+                                        nav.navigate("contract/${kind.name}/new")
+                                    },
+                            )
+                        }
+                    }
+                }
             if (processing)
                 AlertDialog(
                     onDismissRequest = {},

@@ -120,14 +120,28 @@ interface TicketDao {
             OutboxEntity::class,
             SyncCursorEntity::class,
             SyncConflictEntity::class,
+            ContractEntity::class,
         ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class TicketDatabase : RoomDatabase() {
     abstract fun tickets(): TicketDao
 
+    abstract fun coverage(): CoverageDao
+
     companion object {
+        val MIGRATION_3_4 =
+            object : Migration(3, 4) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL(
+                        "CREATE TABLE IF NOT EXISTS tracked_contracts (id TEXT NOT NULL PRIMARY KEY, ownerId TEXT NOT NULL, kind TEXT NOT NULL, name TEXT NOT NULL, provider TEXT NOT NULL, amountMinor INTEGER NOT NULL, currency TEXT NOT NULL, period TEXT NOT NULL, nextDate TEXT NOT NULL, active INTEGER NOT NULL, revision INTEGER NOT NULL, deletedAt INTEGER)"
+                    )
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_tracked_contracts_ownerId ON tracked_contracts(ownerId)"
+                    )
+                }
+            }
         val MIGRATION_2_3 =
             object : Migration(2, 3) {
                 override fun migrate(db: SupportSQLiteDatabase) {

@@ -15,7 +15,7 @@ import org.junit.Test
 class DatabaseMigrationTest {
     @Test
     fun previousVersionsKeepTheirDocumentsAndPendingChanges() = runTest {
-        for (sourceVersion in listOf(1, 2)) migrate(sourceVersion)
+        for (sourceVersion in listOf(1, 2, 3)) migrate(sourceVersion)
     }
 
     private suspend fun migrate(sourceVersion: Int) {
@@ -56,13 +56,35 @@ class DatabaseMigrationTest {
             // Actual Room opening runs the migration and validates all tables and indices.
             val migrated =
                 Room.databaseBuilder(context, TicketDatabase::class.java, name)
-                    .addMigrations(TicketDatabase.MIGRATION_1_2, TicketDatabase.MIGRATION_2_3)
+                    .addMigrations(
+                        TicketDatabase.MIGRATION_1_2,
+                        TicketDatabase.MIGRATION_2_3,
+                        TicketDatabase.MIGRATION_3_4,
+                    )
                     .build()
             try {
                 val document = migrated.tickets().document("doc", "owner")!!
                 assertEquals("Original", document.displayName)
                 assertEquals(0L, document.remoteRevision)
                 assertEquals(1, migrated.tickets().outbox("owner").size)
+                migrated
+                    .coverage()
+                    .put(
+                        es.sergiotech.tickettracker.core.database.ContractEntity(
+                            "contract",
+                            "owner",
+                            "SUBSCRIPTION",
+                            "Plan",
+                            "",
+                            1299,
+                            "EUR",
+                            "MONTHLY",
+                            "2026-11-17",
+                            true,
+                            1,
+                        )
+                    )
+                assertEquals(1299L, migrated.coverage().contract("contract")!!.amountMinor)
             } finally {
                 migrated.close()
             }

@@ -2,7 +2,7 @@
     <string name="app_name">TicketTracker</string>
     <string name="brand_ticket" translatable="false">Ticket</string>
     <string name="brand_tracker" translatable="false">Tracker</string>
-    <string name="brand_subtitle">Tus compras y fechas, a mano.</string>
+    <string name="brand_subtitle">Tu vida digital y física, siempre protegida.</string>
     <string name="dashboard_title">Productos y garantías</string>
     <plurals name="dashboard_total">
         <item quantity="one">%1$d producto guardado</item>
@@ -16,7 +16,7 @@
     <string name="dashboard_documents_body">Tus justificantes en un solo lugar</string>
     <string name="search_purchases">Buscar compras</string>
     <string name="home">Inicio</string>
-    <string name="nav_purchases">Compras</string>
+    <string name="nav_purchases">Productos</string>
     <string name="nav_documents">Tickets</string>
     <string name="purchases">Mis compras</string>
     <string name="documents">Documentos</string>
@@ -155,7 +155,7 @@
     <string name="notification_body">Revisa las garantías y devoluciones de tus artículos en TicketTracker.</string>
     <string name="notification_channel">Garantías y devoluciones</string>
     <string name="export">Exportar mis datos</string>
-    <string name="export_body">ZIP con compras, documentos originales y hashes de integridad. Contiene información privada sin cifrar: guárdalo en un lugar seguro.</string>
+    <string name="export_body">ZIP con compras, suscripciones, seguros, documentos originales y hashes de integridad. Contiene información privada sin cifrar: guárdalo en un lugar seguro.</string>
     <string name="export_success">Exportación completada</string>
     <string name="export_error">La exportación no terminó. El archivo puede estar incompleto; elimínalo y vuelve a exportar.</string>
     <string name="settings_error">No se pudo guardar la preferencia</string>

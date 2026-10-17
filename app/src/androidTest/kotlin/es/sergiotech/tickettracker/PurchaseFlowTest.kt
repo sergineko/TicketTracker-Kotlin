@@ -12,8 +12,9 @@ class PurchaseFlowTest {
     fun manualPurchaseCanBeSavedSearchedAndReopened() {
         val merchant = "Tienda UI ${System.currentTimeMillis()}"
         compose.waitUntil(30_000) {
-            compose.onAllNodesWithTag("add-purchase").fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodesWithTag("add-menu").fetchSemanticsNodes().isNotEmpty()
         }
+        compose.onNodeWithTag("add-menu").performClick()
         compose.onNodeWithTag("add-purchase").performClick()
         compose.onNodeWithTag("merchant").performTextInput(merchant)
         compose.onNodeWithTag("total").performTextInput("39,95")

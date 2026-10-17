@@ -21,7 +21,11 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): TicketDatabase =
         Room.databaseBuilder(context, TicketDatabase::class.java, "tickettracker.db")
-            .addMigrations(TicketDatabase.MIGRATION_1_2, TicketDatabase.MIGRATION_2_3)
+            .addMigrations(
+                TicketDatabase.MIGRATION_1_2,
+                TicketDatabase.MIGRATION_2_3,
+                TicketDatabase.MIGRATION_3_4,
+            )
             .build()
 
     @Provides
@@ -61,6 +65,11 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun coverage(db: TicketDatabase, identity: IdentityGateway): CoverageRepository =
+        RoomCoverageRepository(db, identity)
+
+    @Provides
+    @Singleton
     fun documents(@ApplicationContext context: Context) = PrivateDocumentStore(context)
 
     @Provides
@@ -68,7 +77,9 @@ object AppModule {
         @ApplicationContext context: Context,
         repository: PurchaseRepository,
         store: PrivateDocumentStore,
-    ) = VaultExporter(context, repository, store)
+        coverage: CoverageRepository,
+        identity: IdentityGateway,
+    ) = VaultExporter(context, repository, store, coverage, identity)
 
     @Provides fun savePurchase(repository: PurchaseRepository) = SavePurchase(repository)
 }
