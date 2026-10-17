@@ -17,7 +17,7 @@ private val Context.settings by preferencesDataStore("tickettracker")
 
 data class AppPreferences(
     val theme: String = "SYSTEM",
-    val dynamicColor: Boolean = true,
+    val dynamicColor: Boolean = false,
     val reminders: Boolean = false,
 )
 
@@ -39,7 +39,7 @@ class LocalPreferences(private val context: Context) : IdentityGateway {
         context.settings.data.map {
             AppPreferences(
                 it[themeKey] ?: "SYSTEM",
-                it[dynamicKey] ?: true,
+                it[dynamicKey] ?: false,
                 it[remindersKey] ?: false,
             )
         }

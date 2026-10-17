@@ -1,7 +1,21 @@
 <resources>
     <string name="app_name">TicketTracker</string>
-    <string name="tagline">Your purchases, under control</string>
+    <string name="brand_subtitle">Your purchases and dates, at hand.</string>
+    <string name="dashboard_title">Products and warranties</string>
+    <plurals name="dashboard_total">
+        <item quantity="one">%1$d saved product</item>
+        <item quantity="other">%1$d saved products</item>
+    </plurals>
+    <string name="dashboard_purchases">Purchases</string>
+    <string name="dashboard_warranties">In warranty</string>
+    <string name="dashboard_upcoming">Upcoming dates</string>
+    <string name="dashboard_returns">Returns</string>
+    <string name="dashboard_returns_body">With a current date entered by you</string>
+    <string name="dashboard_documents_body">Your receipts in one place</string>
+    <string name="search_purchases">Search purchases</string>
     <string name="home">Home</string>
+    <string name="nav_purchases">Purchases</string>
+    <string name="nav_documents">Files</string>
     <string name="purchases">Purchases</string>
     <string name="documents">Documents</string>
     <string name="profile">Profile</string>
@@ -15,12 +29,8 @@
     <string name="retry">Retry</string>
     <string name="delete">Delete</string>
     <string name="edit">Edit</string>
-    <string name="welcome">Everything in its place.</string>
-    <string name="welcome_body">Keep your receipts. Care for your purchases.</string>
     <string name="local_badge">On this device</string>
     <string name="local_notice">Keep an export before changing phones or uninstalling. Check your pending changes and account conflicts in Profile.</string>
-    <string name="saved_purchases">Saved purchases</string>
-    <string name="active_warranties">Active warranties</string>
     <string name="upcoming">Dates that matter</string>
     <string name="recent">Your latest purchases</string>
     <string name="see_all">See all</string>

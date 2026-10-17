@@ -1,7 +1,23 @@
 <resources>
     <string name="app_name">TicketTracker</string>
-    <string name="tagline">Tus compras, siempre bajo control</string>
+    <string name="brand_ticket" translatable="false">Ticket</string>
+    <string name="brand_tracker" translatable="false">Tracker</string>
+    <string name="brand_subtitle">Tus compras y fechas, a mano.</string>
+    <string name="dashboard_title">Productos y garantías</string>
+    <plurals name="dashboard_total">
+        <item quantity="one">%1$d producto guardado</item>
+        <item quantity="other">%1$d productos guardados</item>
+    </plurals>
+    <string name="dashboard_purchases">Compras</string>
+    <string name="dashboard_warranties">En garantía</string>
+    <string name="dashboard_upcoming">Fechas próximas</string>
+    <string name="dashboard_returns">Devoluciones</string>
+    <string name="dashboard_returns_body">Con fecha vigente indicada por ti</string>
+    <string name="dashboard_documents_body">Tus justificantes en un solo lugar</string>
+    <string name="search_purchases">Buscar compras</string>
     <string name="home">Inicio</string>
+    <string name="nav_purchases">Compras</string>
+    <string name="nav_documents">Tickets</string>
     <string name="purchases">Mis compras</string>
     <string name="documents">Documentos</string>
     <string name="profile">Perfil</string>
@@ -15,12 +31,8 @@
     <string name="retry">Reintentar</string>
     <string name="delete">Eliminar</string>
     <string name="edit">Editar</string>
-    <string name="welcome">Todo en su sitio.</string>
-    <string name="welcome_body">Guarda tus tickets. Cuida lo que compras.</string>
     <string name="local_badge">En este dispositivo</string>
     <string name="local_notice">Conserva una exportación antes de cambiar de móvil o desinstalar. Comprueba en Perfil los cambios pendientes y los conflictos de tu cuenta.</string>
-    <string name="saved_purchases">Compras guardadas</string>
-    <string name="active_warranties">Garantías activas</string>
     <string name="upcoming">Fechas que importan</string>
     <string name="recent">Tus últimas compras</string>
     <string name="see_all">Ver todas</string>

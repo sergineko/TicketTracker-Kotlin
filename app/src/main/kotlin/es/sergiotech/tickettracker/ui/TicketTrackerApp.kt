@@ -1,22 +1,28 @@
 package es.sergiotech.tickettracker.ui
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.*
@@ -121,12 +127,22 @@ fun TicketTrackerApp(
     }
 
     TicketTheme(state.preferences.theme, state.preferences.dynamicColor) {
+        val view = LocalView.current
+        val lightSystemBars = MaterialTheme.colorScheme.background.luminance() > 0.5f
+        SideEffect {
+            (context as? Activity)?.window?.let { window ->
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = lightSystemBars
+                    isAppearanceLightNavigationBars = lightSystemBars
+                }
+            }
+        }
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Scaffold(
                 snackbarHost = { SnackbarHost(snackbar) },
                 bottomBar = {
                     if (route in topRoutes)
-                        NavigationBar {
+                        NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
                             val icons =
                                 listOf(
                                     Icons.Outlined.Home,
@@ -137,29 +153,55 @@ fun TicketTrackerApp(
                             val titles =
                                 listOf(
                                     R.string.home,
-                                    R.string.purchases,
-                                    R.string.documents,
+                                    R.string.nav_purchases,
+                                    R.string.nav_documents,
                                     R.string.profile,
                                 )
                             topRoutes.forEachIndexed { i, destination ->
+                                if (i == 2) {
+                                    Box(
+                                        Modifier.width(68.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        if (!state.loading && !state.loadError)
+                                            FloatingActionButton(
+                                                onClick = { startEditor() },
+                                                modifier =
+                                                    Modifier.size(54.dp).testTag("add-purchase"),
+                                                shape = CircleShape,
+                                                containerColor = MaterialTheme.colorScheme.primary,
+                                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                            ) {
+                                                Icon(
+                                                    Icons.Outlined.Add,
+                                                    label(R.string.add_purchase),
+                                                    Modifier.size(30.dp),
+                                                )
+                                            }
+                                    }
+                                }
                                 NavigationBarItem(
                                     route == destination,
                                     { top(destination) },
                                     icon = { Icon(icons[i], null) },
-                                    label = { Text(label(titles[i])) },
+                                    label = {
+                                        Text(
+                                            label(titles[i]),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    },
+                                    colors =
+                                        NavigationBarItemDefaults.colors(
+                                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                                            indicatorColor =
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                        ),
                                     modifier = Modifier.testTag("nav-$destination"),
                                 )
                             }
                         }
-                },
-                floatingActionButton = {
-                    if (route in listOf("home", "purchases") && !state.loading && !state.loadError)
-                        ExtendedFloatingActionButton(
-                            onClick = { startEditor() },
-                            icon = { Icon(Icons.Outlined.Add, null) },
-                            text = { Text(label(R.string.add_purchase)) },
-                            modifier = Modifier.testTag("add-purchase"),
-                        )
                 },
             ) { padding ->
                 Box(Modifier.padding(padding)) {
@@ -183,6 +225,7 @@ fun TicketTrackerApp(
                                     { nav.navigate("scanner") },
                                     ::startImport,
                                     { top("purchases") },
+                                    { top("documents") },
                                     { nav.navigate("detail/$it") },
                                 )
                             }

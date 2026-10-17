@@ -22,7 +22,7 @@
 
 Fixture identificado expresamente como `VALIDACION-CLOUD-20261017.pdf`, PDF sintético de 616 bytes. SHA-256 `ca9e1cea773cb50403bdc581d52ae4a87adc90e421d9988f193012dffe307cde`. Documento `ca020c95-8bd3-4d2c-b737-84c15a54dc8a`; compra sintética `db70f47b-2702-497c-b7a9-5b2050da32e8`. El original permanece tanto en R2 como en `.local/cloud-validation-original.pdf`; no se utilizó un ticket privado como fixture ni se borró el último original.
 
-Las peticiones de prueba se ejecutaron por HTTPS desde el VPS autorizado, sin modificar su configuración. Cabeceras de sesión y cuerpos viajaron por stdin SSH; no por argumentos ni archivos remotos. La sesión local se protegió con Windows DPAPI y se revocó al terminar. Una primera sesión de ensayo quedó sin guardar por un fallo de la herramienta local; su caducidad administrativa está pendiente de identificarla de forma única y recuperar acceso D1 de gestión. La revisión automática rechazó una consulta de caducidad que podía afectar a varias sesiones; esa modificación no se ejecutó. Las fechas y tokens del propietario no se incluyen en este informe.
+Las peticiones de prueba se ejecutaron por HTTPS desde el VPS autorizado, sin modificar su configuración. Cabeceras de sesión y cuerpos viajaron por stdin SSH; no por argumentos ni archivos remotos. La sesión local se protegió con Windows DPAPI y se revocó al terminar. La primera sesión de ensayo, que no pudo guardarse por un fallo de la herramienta local, se identificó en lectura y se caducó con un filtro único de fila y fecha de creación; solo devolvió una fila. La consulta posterior confirmó cero sesiones activas. La revisión automática había rechazado un filtro más amplio y esa consulta no se ejecutó. Wrangler quedó desconectado al terminar; los logs se comprobaron sin encontrar la clave Resend ni el pepper. No se incluyen tokens ni correo del propietario en este informe.
 
 ## Límites y siguientes ensayos
 
@@ -32,6 +32,6 @@ Pendientes: Google real desde Android, segunda instalación con recuperación co
 
 ## Revisión de CI
 
-Main `c7a725e` tiene los cuatro jobs correctos: Worker, build/lint/JVM/APK, dispositivo API 29 y API 36. [Ejecución 39032407711](https://github.com/sergineko/TicketTracker-Kotlin/actions/runs/39032407711).
+Main `02e8cec` tiene los cuatro jobs correctos: Worker, build/lint/JVM/APK, dispositivo API 29 y API 36. [Ejecución 39052196755](https://github.com/sergineko/TicketTracker-Kotlin/actions/runs/39052196755). El anterior `c7a725e` también pasó sus cuatro jobs.
 
 El [fallo consultado por el propietario](https://github.com/sergineko/TicketTracker-Kotlin/actions/runs/39032066012) pertenece al [PR Dependabot #11](https://github.com/sergineko/TicketTracker-Kotlin/pull/11), sin integrar. Solo actualiza Kotlin de 2.2.10 a 2.4.21. Hilt 2.59.2 informa: `Provided Metadata instance has version 2.4.0, while maximum supported version is 2.3.0`. Requiere una actualización coordinada y validada de la herramienta de compilación. Se conserva la combinación que pasa CI; no se fusionó ni cerró el PR automáticamente.

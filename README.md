@@ -9,6 +9,7 @@ Aplicación Android nativa de Sergiotech para organizar compras, justificantes, 
 - CameraX, SAF, compartir PDF/imagen desde otras apps y OCR local ML Kit.
 - Originales privados, miniaturas, SHA-256, duplicados por propietario y límite de 25 MiB.
 - Temas, español/inglés, recordatorios opt-in y exportación ZIP con manifiesto.
+- Iconos aportados por el propietario, paleta turquesa y resumen de compras/fechas con navegación central; [referencia visual](docs/design/BRAND.md).
 - Adaptadores Cloudflare: sesiones cifradas Keystore, códigos de correo, Google, sincronización incremental, conflictos y descarga íntegra bajo demanda.
 - Worker con D1/R2 privados, autorización por propietario, cuotas e idempotencia; pruebas locales sin credenciales.
 
@@ -54,4 +55,4 @@ Desde `backend/cloudflare`, con Node 22+: `npm ci`, `npm test`, `npm run format:
 
 El [estado central](docs/DELIVERY_STATUS.md) distingue código, pruebas locales y producción. El [inventario aprobado](docs/integrations/CLOUDFLARE_DEPLOYMENT.md) y la [validación real](docs/integrations/PRODUCTION_VALIDATION.md) registran el despliegue y sus límites. [ADR 0002](docs/architecture/ADR/0002_cloudflare_d1.md) documenta la sustitución de Supabase. La especificación de origen conserva el concepto del Word y señala las decisiones posteriores; el Word y las credenciales quedan fuera de Git.
 
-Nombre y símbolo provisionales. Todos los derechos reservados por el propietario; no se asigna una licencia de software libre sin su decisión.
+Identidad visual basada en los recursos aportados por el propietario. Todos los derechos reservados por el propietario; no se asigna una licencia de software libre sin su decisión.

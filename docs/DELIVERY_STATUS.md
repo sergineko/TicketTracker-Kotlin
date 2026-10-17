@@ -22,7 +22,8 @@ Actualizado el 17/10/2026. Versión 0.1.0. **El MVP cloud no está terminado.** 
 | Cámara y Sharesheet | IMPLEMENTED | Compilan; pruebas físicas y Gmail real pendientes |
 | Fechas manuales | IMPLEMENTED | Reglas civiles probadas; no aplica plazos jurídicos automáticos |
 | Exportación ZIP | IMPLEMENTED | Originales/manifiesto/hashes; no hay restaurador integrado todavía |
-| CI | VERIFIED | main c7a725e: Worker, build/lint/JVM/APK y dispositivos API 29/36 correctos en run 39032407711. PR Dependabot #11 falla por incompatibilidad Hilt/Kotlin y no está integrado |
+| CI | VERIFIED_REFERENCE | Última ejecución remota registrada, 02e8cec: Worker, build/lint/JVM/APK y dispositivos API 29/36 correctos en run 39052196755. PR Dependabot #11 falla por incompatibilidad Hilt/Kotlin y no está integrado |
+| Identidad visual | VERIFIED_LOCAL | Iconos aportados, launcher adaptativo/temático, contadores Room y navegación central; revisados claro/oscuro, es/en y fuente al 130 %, con pruebas Compose; ver design/BRAND.md |
 | Supabase/Coolify | HISTORICAL | Auditoría previa solo en lectura; descartados para el producto y sin modificaciones en el VPS |
 | Deploy y recuperación cloud real | PARTIALLY_VERIFIED | Inventario aprobado y desplegado. Backend probado con documento sintético; recuperación entre dos instalaciones Android aún pendiente |
 | Google real | CONFIGURED_NOT_VERIFIED | Proyecto independiente, clientes web/Android debug, identidad básica y usuario piloto configurados; nonce remoto correcto. Falta login real desde Android y firma de distribución |
@@ -34,6 +35,7 @@ VERIFIED acredita únicamente la prueba indicada. VERIFIED_LOCAL no significa de
 
 - `:domain:test`: 15 pruebas, cero fallos.
 - `:app:connectedDebugAndroidTest` en AVD propio API 36: 16 pruebas, cero fallos.
+- Flujo Compose repetido tras los ajustes visuales: alta, búsqueda, detalle y recreación correctos. Capturas en claro/oscuro y con fuente al 130 %.
 - `spotlessCheck`, `:app:lintDebug`, `:core:documents:lintDebug`, `:core:database:lintDebug`: correctos.
 - `:app:assembleDebug` y `:app:assembleRelease`: correctos; APK release sin firma de distribución.
 - `node --test --test-concurrency=1 test/*.test.mjs`: 19 pruebas, cero fallos.
