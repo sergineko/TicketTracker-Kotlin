@@ -1,0 +1,24 @@
+{
+  "name": "tickettracker-api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "format": "prettier --write src test wrangler.jsonc package.json",
+    "format:check": "prettier --check src test wrangler.jsonc package.json",
+    "dev": "wrangler dev --ip 127.0.0.1",
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "check": "node --check src/worker.js && node --check src/auth.js && node --check src/records.js",
+    "migrate:local": "wrangler d1 migrations apply DB --local",
+    "deploy:check": "wrangler deploy --dry-run --outdir ../../.local/worker-bundle",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "miniflare": "4.20260111.0",
+    "prettier": "3.6.2",
+    "wrangler": "4.59.1"
+  }
+}

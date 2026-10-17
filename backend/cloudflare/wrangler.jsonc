@@ -1,0 +1,31 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tickettracker-api",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-01-11",
+  "workers_dev": true,
+  "preview_urls": false,
+  "send_metrics": false,
+  "observability": { "enabled": false },
+  "triggers": { "crons": ["23 4 * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tickettracker",
+      "database_id": "b8a13f81-ee19-49bb-8618-bc4dfd3cd94e",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "r2_buckets": [
+    { "binding": "DOCUMENTS", "bucket_name": "tickettracker-documents", "jurisdiction": "eu" },
+  ],
+  "vars": {
+    "EMAIL_FROM": "TicketTracker <tickettracker@contact.sergiotech.es>",
+    "GOOGLE_CLIENT_ID": "",
+    "GOOGLE_ANDROID_CLIENT_ID": "",
+    "MAX_DOCUMENT_BYTES": "26214400",
+    "MAX_USER_BYTES": "104857600",
+    "MAX_TOTAL_BYTES": "1073741824",
+    "MAX_USER_RECORDS": "2000",
+  },
+}

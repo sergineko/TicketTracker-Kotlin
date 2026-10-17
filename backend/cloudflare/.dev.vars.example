@@ -1,0 +1,3 @@
+# Local development only. Create .dev.vars (ignored) with random values.
+SESSION_PEPPER=replace-with-at-least-32-random-bytes
+RESEND_API_KEY=configure-a-server-only-resend-key
