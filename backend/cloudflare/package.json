@@ -17,7 +17,7 @@
     "deploy": "wrangler deploy"
   },
   "devDependencies": {
-    "miniflare": "4.20260111.0",
+    "miniflare": "4.20260730.0",
     "prettier": "3.6.2",
     "wrangler": "4.59.1"
   }
