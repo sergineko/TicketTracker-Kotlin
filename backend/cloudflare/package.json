@@ -19,6 +19,6 @@
   "devDependencies": {
     "miniflare": "4.20260111.0",
     "prettier": "3.6.2",
-    "wrangler": "4.59.1"
+    "wrangler": "4.151.0"
   }
 }
