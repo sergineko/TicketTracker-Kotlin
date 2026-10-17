@@ -40,7 +40,7 @@ jobs:
         run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
       - name: Unit tests, lint and APK
         run: bash gradlew spotlessCheck :domain:test :app:lintDebug :core:documents:lintDebug :core:database:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --console=plain
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: android-reports-and-apk
@@ -75,7 +75,7 @@ jobs:
           target: google_apis
           disable-animations: true
           script: bash gradlew :app:connectedDebugAndroidTest --console=plain
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: device-reports-api-${{ matrix.api }}
