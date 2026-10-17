@@ -119,6 +119,14 @@ test('health is public and sensitive routes require a session', async () => {
   assert.equal((await api('/health')).status, 200);
   assert.equal((await api('/v1/sync/changes')).status, 401);
 });
+test('JSON null and arrays are rejected as client errors without sending email', async () => {
+  for (const body of [null, []])
+    assert.equal(
+      (await api('/v1/auth/email/request', { method: 'POST', body, ip: randomUUID() })).status,
+      400
+    );
+  assert.equal(emails.length, 0);
+});
 test('email codes issue opaque sessions without exposing codes or stored tokens', async () => {
   alice = await login('alice@example.test');
   bob = await login('bob@example.test');

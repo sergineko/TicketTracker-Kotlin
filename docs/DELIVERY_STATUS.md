@@ -13,7 +13,7 @@ Actualizado el 17/10/2026. Versión 0.1.0. **El MVP cloud no está terminado.** 
 | Documentos y OCR | VERIFIED | 3 pruebas API 36: OCR real de imagen, PDF byte a byte, rechazo de corrupto/tamaño excesivo |
 | Registro manual Compose | VERIFIED | Alta, búsqueda, detalle y recreación de Activity en emulador API 36 |
 | Sesión/sincronización Android | VERIFIED_LOCAL | 6 pruebas de Keystore/adopción, cuentas separadas, ACK concurrente, conflictos, rollback ajeno, descarga íntegra y conservación ante fallo; transporte de prueba |
-| API Worker D1/R2 | VERIFIED_LOCAL | 18 tests Miniflare: auth, replay, intentos, CAS, idempotencia, feed, privacidad, hash, cuotas y firma/claims Google; sin correos reales |
+| API Worker D1/R2 | VERIFIED_LOCAL | 19 tests Miniflare: auth, entradas inválidas, replay, intentos, CAS, idempotencia, feed, privacidad, hash, cuotas y firma/claims Google; sin correos reales |
 | Bucket dedicado | CREATED | tickettracker-documents, Standard, jurisdicción UE, acceso público desactivado; sin tickets reales subidos |
 | D1 dedicada | CREATED | tickettracker, jurisdicción UE, vacía al crearse; migración remota aún no aplicada |
 | Paquete Worker | VERIFIED_LOCAL | Wrangler dry-run correcto con D1 y R2 eu; no publicado ni secretos configurados |
@@ -22,7 +22,7 @@ Actualizado el 17/10/2026. Versión 0.1.0. **El MVP cloud no está terminado.** 
 | Cámara y Sharesheet | IMPLEMENTED | Compilan; pruebas físicas y Gmail real pendientes |
 | Fechas manuales | IMPLEMENTED | Reglas civiles probadas; no aplica plazos jurídicos automáticos |
 | Exportación ZIP | IMPLEMENTED | Originales/manifiesto/hashes; no hay restaurador integrado todavía |
-| CI | PREPARED | Build/lint/JVM, Worker y emuladores API 29/36; ejecución remota aún no acreditada |
+| CI | IN_PROGRESS | Worker pasó en GitHub Actions; Android falló preparando el SDK por el paquete retirado tools. Se actualizó setup-android v4 con platform-tools explícito; repetición pendiente |
 | Supabase/Coolify | HISTORICAL | Auditoría previa solo en lectura; descartados para el producto y sin modificaciones en el VPS |
 | Deploy y recuperación cloud real | AWAITING_APPROVAL | Inventario concreto en integrations/CLOUDFLARE_DEPLOYMENT.md; requiere autorización según AGENTS.md |
 | Google real | AWAITING_CONFIGURATION | Código y validación criptográfica probados con claves ficticias; faltan clientes OAuth/huellas de firma y ensayo real |
@@ -36,7 +36,7 @@ VERIFIED acredita únicamente la prueba indicada. VERIFIED_LOCAL no significa de
 - `:app:connectedDebugAndroidTest` en AVD propio API 36: 15 pruebas, cero fallos.
 - `spotlessCheck`, `:app:lintDebug`, `:core:documents:lintDebug`, `:core:database:lintDebug`: correctos.
 - `:app:assembleDebug` y `:app:assembleRelease`: correctos; APK release sin firma de distribución.
-- `node --test --test-concurrency=1 test/*.test.mjs`: 18 pruebas, cero fallos.
+- `node --test --test-concurrency=1 test/*.test.mjs`: 19 pruebas, cero fallos.
 - Prettier y `wrangler deploy --dry-run`: correctos; solo empaquetado local, sin cambios cloud.
 
 Los informes y capturas de prueba quedan en `.local/` y `build/`, excluidos de Git. El AVD existente API 37.2 preliminar no era compatible con Espresso; se utilizó uno API 36 aislado del proyecto. API 29 queda preparada en CI, sin resultado local. El helper de migración presentó una incompatibilidad de serialización: la prueba usa ahora la apertura real de Room con el esquema anterior, sin desactivar su validación.

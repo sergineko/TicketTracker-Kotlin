@@ -54,7 +54,12 @@ export async function readJson(request, limit = 196608) {
     415
   );
   try {
-    return JSON.parse(new TextDecoder().decode(await readBytes(request, limit)));
+    const value = JSON.parse(new TextDecoder().decode(await readBytes(request, limit)));
+    requireValue(
+      value !== null && typeof value === 'object' && !Array.isArray(value),
+      'invalid_json'
+    );
+    return value;
   } catch (error) {
     if (error instanceof HttpError) throw error;
     throw new HttpError(400, 'invalid_json');

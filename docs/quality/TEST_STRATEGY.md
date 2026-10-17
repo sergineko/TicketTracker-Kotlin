@@ -4,7 +4,7 @@ El dominio tiene pruebas JVM de importes, validación, extracción conservadora 
 
 Seis pruebas Android adicionales verifican cifrado Keystore y adopción de inventario, separación entre cuentas, ACK concurrente, conflictos explícitos, rollback de feed ajeno, descarga bajo demanda íntegra y conservación de original/outbox ante fallo. El transporte es un adaptador de prueba; no se confunde con una conexión cloud real.
 
-La API se ensaya con Miniflare, D1 y R2 locales. Resend y JWKS se interceptan: no se envían correos ni se usan cuentas reales. Dieciocho tests verifican auth, replay, intentos, sesiones revocables, CAS, idempotencia, feed, objetos privados, hashes y la validación criptográfica Google con RSA de prueba.
+La API se ensaya con Miniflare, D1 y R2 locales. Resend y JWKS se interceptan: no se envían correos ni se usan cuentas reales. Diecinueve tests verifican auth, replay, intentos, sesiones revocables, CAS, idempotencia, feed, objetos privados, hashes y la validación criptográfica Google con RSA de prueba.
 
 CI ejecuta formato, análisis estático, build, tests JVM/Worker y dispositivos API 29/36. Tener workflow no acredita una ejecución remota correcta; consultar DELIVERY_STATUS y GitHub Actions. Los resultados locales se limitan a API 36. No se ejecutan fixtures contra el VPS ni D1 remota.
 
