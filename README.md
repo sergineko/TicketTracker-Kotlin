@@ -43,7 +43,7 @@ Tras el despliegue aprobado, pasar los identificadores **públicos**: `-Ptickett
 | Carpeta | Responsabilidad |
 | --- | --- |
 | domain | Kotlin sin dependencias Android ni proveedores; modelos, contratos y reglas |
-| core/database | Room normalizado, migración 1→2, outbox, cursores y conflictos |
+| core/database | Room normalizado, migraciones 1→2→3, outbox, cursores y conflictos |
 | core/documents | Archivos privados, OCR, límites e integridad |
 | core/designsystem | Material 3 |
 | app | Compose, ViewModels, adaptadores, Keystore, sincronización y trabajos |

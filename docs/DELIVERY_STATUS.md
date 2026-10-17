@@ -9,10 +9,10 @@ Actualizado el 17/10/2026. Versión 0.1.0. **El MVP cloud no está terminado.** 
 | Proyecto Android modular | VERIFIED | Cinco módulos, Kotlin/Compose/Material 3/Hilt; debug y release optimizada compiladas, release sin firma de distribución |
 | Dominio | VERIFIED | 15 pruebas JVM; importes, validación, OCR conservador y vencimientos civiles |
 | Room/repositorio | VERIFIED | 4 pruebas API 36 de transacciones, revisiones, aislamiento y duplicados |
-| Migración Room 1→2 | VERIFIED | Base creada con esquema v1 y abierta por Room v2: validación de esquema, documento y outbox conservados |
+| Migraciones Room 1/2→3 | VERIFIED | Bases creadas con esquemas v1/v2 y abiertas por Room v3: validación de esquema, documento y outbox conservados |
 | Documentos y OCR | VERIFIED | 3 pruebas API 36: OCR real de imagen, PDF byte a byte, rechazo de corrupto/tamaño excesivo |
 | Registro manual Compose | VERIFIED | Alta, búsqueda, detalle y recreación de Activity en emulador API 36 |
-| Sesión/sincronización Android | VERIFIED_LOCAL | 6 pruebas de Keystore/adopción, cuentas separadas, ACK concurrente, conflictos, rollback ajeno, descarga íntegra y conservación ante fallo; transporte de prueba |
+| Sesión/sincronización Android | VERIFIED_LOCAL | 7 pruebas de Keystore/adopción, cuentas separadas, originales con hash coincidente, ACK concurrente, conflictos, rollback ajeno, descarga íntegra y conservación ante fallo; transporte de prueba |
 | API Worker D1/R2 | VERIFIED_LOCAL | 19 tests Miniflare: auth, entradas inválidas, replay, intentos, CAS, idempotencia, feed, privacidad, hash, cuotas y firma/claims Google; sin correos reales |
 | Bucket dedicado | CREATED | tickettracker-documents, Standard, jurisdicción UE, acceso público desactivado; sin tickets reales subidos |
 | D1 dedicada | CREATED | tickettracker, jurisdicción UE, vacía al crearse; migración remota aún no aplicada |
@@ -22,7 +22,7 @@ Actualizado el 17/10/2026. Versión 0.1.0. **El MVP cloud no está terminado.** 
 | Cámara y Sharesheet | IMPLEMENTED | Compilan; pruebas físicas y Gmail real pendientes |
 | Fechas manuales | IMPLEMENTED | Reglas civiles probadas; no aplica plazos jurídicos automáticos |
 | Exportación ZIP | IMPLEMENTED | Originales/manifiesto/hashes; no hay restaurador integrado todavía |
-| CI | IN_PROGRESS | Worker pasó en GitHub Actions; Android falló preparando el SDK por el paquete retirado tools. Se actualizó setup-android v4 con platform-tools explícito; repetición pendiente |
+| CI | PARTIALLY_VERIFIED | En c63d1e0, Worker, build/lint/JVM/APK y dispositivo API 29 pasan en GitHub Actions tras corregir setup-android; API 36 en curso. La corrección posterior de hashes/migración v3 se validó localmente y debe repetir CI |
 | Supabase/Coolify | HISTORICAL | Auditoría previa solo en lectura; descartados para el producto y sin modificaciones en el VPS |
 | Deploy y recuperación cloud real | AWAITING_APPROVAL | Inventario concreto en integrations/CLOUDFLARE_DEPLOYMENT.md; requiere autorización según AGENTS.md |
 | Google real | AWAITING_CONFIGURATION | Código y validación criptográfica probados con claves ficticias; faltan clientes OAuth/huellas de firma y ensayo real |
@@ -33,7 +33,7 @@ VERIFIED acredita únicamente la prueba indicada. VERIFIED_LOCAL no significa de
 ## Comprobaciones ejecutadas
 
 - `:domain:test`: 15 pruebas, cero fallos.
-- `:app:connectedDebugAndroidTest` en AVD propio API 36: 15 pruebas, cero fallos.
+- `:app:connectedDebugAndroidTest` en AVD propio API 36: 16 pruebas, cero fallos.
 - `spotlessCheck`, `:app:lintDebug`, `:core:documents:lintDebug`, `:core:database:lintDebug`: correctos.
 - `:app:assembleDebug` y `:app:assembleRelease`: correctos; APK release sin firma de distribución.
 - `node --test --test-concurrency=1 test/*.test.mjs`: 19 pruebas, cero fallos.

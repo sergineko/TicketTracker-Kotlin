@@ -121,13 +121,22 @@ interface TicketDao {
             SyncCursorEntity::class,
             SyncConflictEntity::class,
         ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class TicketDatabase : RoomDatabase() {
     abstract fun tickets(): TicketDao
 
     companion object {
+        val MIGRATION_2_3 =
+            object : Migration(2, 3) {
+                override fun migrate(db: SupportSQLiteDatabase) {
+                    db.execSQL("DROP INDEX IF EXISTS index_documents_ownerId_originalSha256")
+                    db.execSQL(
+                        "CREATE INDEX IF NOT EXISTS index_documents_ownerId_originalSha256 ON documents(ownerId,originalSha256)"
+                    )
+                }
+            }
         val MIGRATION_1_2 =
             object : Migration(1, 2) {
                 override fun migrate(db: SupportSQLiteDatabase) {

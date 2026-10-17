@@ -21,7 +21,7 @@ object AppModule {
     @Singleton
     fun database(@ApplicationContext context: Context): TicketDatabase =
         Room.databaseBuilder(context, TicketDatabase::class.java, "tickettracker.db")
-            .addMigrations(TicketDatabase.MIGRATION_1_2)
+            .addMigrations(TicketDatabase.MIGRATION_1_2, TicketDatabase.MIGRATION_2_3)
             .build()
 
     @Provides

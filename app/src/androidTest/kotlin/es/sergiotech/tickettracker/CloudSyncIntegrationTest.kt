@@ -100,6 +100,42 @@ class CloudSyncIntegrationTest {
     }
 
     @Test
+    fun matchingHashesFromSeparateVaultsSurviveAccountAdoption() = runTest {
+        val bytes = "same original imported twice".toByteArray()
+        val hash =
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") {
+                "%02x".format(it)
+            }
+        suspend fun importOriginal(): ReceiptDocument {
+            val id = newId()
+            val variant =
+                DocumentVariant(
+                    kind = VariantKind.ORIGINAL,
+                    relativePath = "$id/original",
+                    mimeType = "application/pdf",
+                    byteSize = bytes.size.toLong(),
+                    sha256 = hash,
+                )
+            store.saveDownloaded(variant, bytes.inputStream())
+            return repository.addDocument(
+                ReceiptDocument(id = id, displayName = "Original", variants = listOf(variant))
+            )
+        }
+        sessions.activate(session)
+        val accountDocument = importOriginal()
+        sessions.logoutLocally()
+        val anonymousDocument = importOriginal()
+        sessions.activate(session)
+        assertEquals(
+            setOf(accountDocument.id, anonymousDocument.id),
+            repository.observeDocuments().first().map { it.id }.toSet(),
+        )
+        assertEquals(2, db.tickets().outbox(owner).size)
+        assertTrue(store.verify(accountDocument.variants.single()))
+        assertTrue(store.verify(anonymousDocument.variants.single()))
+    }
+
+    @Test
     fun anEditDuringAcknowledgementStaysQueuedOnTheNewBase() = runTest {
         sessions.activate(session)
         repository.save(purchase())

@@ -75,12 +75,7 @@ data class PurchaseRecord(
     tableName = "documents",
     foreignKeys =
         [ForeignKey(PurchaseEntity::class, ["id"], ["purchaseId"], onDelete = ForeignKey.RESTRICT)],
-    indices =
-        [
-            Index("ownerId"),
-            Index("purchaseId"),
-            Index(value = ["ownerId", "originalSha256"], unique = true),
-        ],
+    indices = [Index("ownerId"), Index("purchaseId"), Index(value = ["ownerId", "originalSha256"])],
 )
 data class DocumentEntity(
     @PrimaryKey val id: String,

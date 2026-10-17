@@ -18,6 +18,9 @@ android {
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+// Both variants export the same schema history. Serialize writers on a new schema version.
+tasks.matching { it.name == "kspReleaseKotlin" }.configureEach { mustRunAfter("kspDebugKotlin") }
+
 dependencies {
     implementation(project(":domain"))
     implementation(libs.room.runtime)

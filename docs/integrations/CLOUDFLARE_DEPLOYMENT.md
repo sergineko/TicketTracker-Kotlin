@@ -11,7 +11,7 @@ Fecha: 17/10/2026. Estado: preparado para revisión; no se ha aplicado el esquem
 
 ## Cambios propuestos
 
-1. Aplicar únicamente a esa D1 la migración `backend/cloudflare/migrations/0001_initial.sql`: once tablas `tt_`, índices y dos triggers de feed. Es una creación inicial, sin borrados ni migración de datos del VPS.
+1. Aplicar únicamente a esa D1 la migración `backend/cloudflare/migrations/0001_initial.sql`: once tablas `tt_`, índices y dos triggers de feed; Wrangler mantiene además su tabla de seguimiento de migraciones. Es una creación inicial, sin borrados ni migración de datos del VPS.
 2. Crear el Worker `tickettracker-api` con la configuración versionada. Enlazar DB a esa D1 y DOCUMENTS al bucket privado indicado, con jurisdicción eu. Publicar su ruta HTTPS workers.dev. `/health` es pública; los datos y objetos requieren sesión.
 3. Guardar como secretos del Worker un SESSION_PEPPER aleatorio exclusivo y RESEND_API_KEY. No copiarlos a Git, logs ni APK. Probar el remitente propuesto `TicketTracker <tickettracker@contact.sergiotech.es>` contra el dominio verificado antes de enviar un código real.
 4. Mantener las cuotas descritas en SECURITY.md. No activar planes de pago ni modificar el resto de buckets/Workers. Programar a las 04:23 UTC solo la limpieza de retos/sesiones/límites caducados; no borrar compras ni objetos.

@@ -14,13 +14,17 @@ import org.junit.Test
 
 class DatabaseMigrationTest {
     @Test
-    fun versionOneKeepsItsDocumentsAndPendingChanges() = runTest {
+    fun previousVersionsKeepTheirDocumentsAndPendingChanges() = runTest {
+        for (sourceVersion in listOf(1, 2)) migrate(sourceVersion)
+    }
+
+    private suspend fun migrate(sourceVersion: Int) {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val name = "migration-${newId()}.db"
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val schema =
             instrumentation.context.assets
-                .open("${TicketDatabase::class.java.name}/1.json")
+                .open("${TicketDatabase::class.java.name}/$sourceVersion.json")
                 .bufferedReader()
                 .use { JSONObject(it.readText()).getJSONObject("database") }
         val file = context.getDatabasePath(name).apply { parentFile!!.mkdirs() }
@@ -31,7 +35,7 @@ class DatabaseMigrationTest {
                     val entity = entities.getJSONObject(index)
                     val table = entity.getString("tableName")
                     old.execSQL(entity.getString("createSql").replace("\u0024{TABLE_NAME}", table))
-                    val indices = entity.getJSONArray("indices")
+                    val indices = entity.optJSONArray("indices") ?: org.json.JSONArray()
                     for (position in 0 until indices.length()) old.execSQL(
                         indices
                             .getJSONObject(position)
@@ -47,12 +51,12 @@ class DatabaseMigrationTest {
                 old.execSQL(
                     "INSERT INTO sync_outbox(entityId,ownerId,operationId,entityType,expectedRemoteRevision,payload,createdAt) VALUES('doc','owner','op','DOCUMENT',0,'{}',1)"
                 )
-                old.version = 1
+                old.version = sourceVersion
             }
             // Actual Room opening runs the migration and validates all tables and indices.
             val migrated =
                 Room.databaseBuilder(context, TicketDatabase::class.java, name)
-                    .addMigrations(TicketDatabase.MIGRATION_1_2)
+                    .addMigrations(TicketDatabase.MIGRATION_1_2, TicketDatabase.MIGRATION_2_3)
                     .build()
             try {
                 val document = migrated.tickets().document("doc", "owner")!!
