@@ -77,6 +77,56 @@ class CloudSyncIntegrationTest {
     }
 
     @Test
+    fun onlyOriginalIsQueuedAndUploadedWhileLocalPreviewAndLegacyRequestsRemainIntact() = runTest {
+        sessions.activate(session)
+        val id = newId()
+        val variants =
+            listOf(VariantKind.ORIGINAL, VariantKind.THUMBNAIL, VariantKind.OPTIMIZED).map { kind ->
+                val target =
+                    File(context.filesDir, "vault/$id/${kind.name}").apply {
+                        parentFile!!.mkdirs()
+                        writeText("fixture-$kind")
+                    }
+                DocumentVariant(
+                    kind = kind,
+                    relativePath = "$id/${kind.name}",
+                    mimeType = "image/png",
+                    byteSize = target.length(),
+                    sha256 = PrivateDocumentStore.sha256(target),
+                )
+            }
+        repository.addDocument(
+            ReceiptDocument(id = id, displayName = "Local previews", variants = variants)
+        )
+        val pending = db.tickets().outbox(owner).single()
+        assertEquals(1, JSONObject(pending.payload).getJSONArray("variants").length())
+        api.requestBlock = { path, _, _, _ ->
+            when {
+                path == "/v1/sync/mutate" -> JSONObject().put("revision", 1)
+                path.endsWith("/finalize") -> JSONObject().put("revision", 2)
+                else -> emptyChanges()
+            }
+        }
+        sync.synchronize()
+        assertEquals(listOf(VariantKind.ORIGINAL), api.uploads.map { it.kind })
+        assertEquals(3, repository.observeDocuments().first().single().variants.size)
+        assertTrue(variants.all { store.verify(it) })
+        // A request persisted by the previous APK must keep its exact idempotency payload.
+        val payload =
+            JSONObject(pending.payload)
+                .put(
+                    "variants",
+                    JSONArray().apply { variants.forEach { put(JSONObject().put("id", it.id)) } },
+                )
+                .toString()
+        db.tickets().enqueue(pending.copy(operationId = newId(), payload = payload))
+        api.uploads.clear()
+        sync.synchronize()
+        assertEquals(3, api.uploads.size)
+        assertEquals(0, repository.observePendingCount().first())
+    }
+
+    @Test
     fun sessionEncryptionAndAdoptionKeepAccountsSeparate() = runTest {
         repository.save(purchase())
         val coverage = RoomCoverageRepository(db, sessions)
@@ -91,7 +141,7 @@ class CloudSyncIntegrationTest {
             )
         )
         val anonymous = sessions.identity.first().id
-        sessions.activate(session)
+        sessions.activate(session.copy(signInMethod = SignInMethod.GOOGLE))
         assertEquals(owner, coverage.observe().first().contracts.single().ownerId)
         assertTrue(db.tickets().outbox(anonymous).isEmpty())
         assertEquals(owner, repository.observePurchases().first().single().ownerId)
@@ -104,7 +154,7 @@ class CloudSyncIntegrationTest {
                 db,
                 LocalPreferences(ApplicationProvider.getApplicationContext()),
             )
-        assertEquals(session, reopened.current())
+        assertEquals(session.copy(signInMethod = SignInMethod.GOOGLE), reopened.current())
         sessions.logoutLocally()
         assertTrue(coverage.observe().first().contracts.isEmpty())
         assertTrue(repository.observePurchases().first().isEmpty())
@@ -334,6 +384,7 @@ class CloudSyncIntegrationTest {
 private class FakeRemote : RemoteApi {
     override val configured = true
     var failUpload = false
+    val uploads = mutableListOf<DocumentVariant>()
     var downloadBytes = byteArrayOf()
     var requestBlock: suspend (String, String?, String, JSONObject?) -> JSONObject = { _, _, _, _ ->
         error("Unexpected request")
@@ -350,6 +401,7 @@ private class FakeRemote : RemoteApi {
     ) {
         if (failUpload) throw java.io.IOException("Simulated disconnect")
         check(store.verify(variant))
+        uploads += variant
     }
 
     override suspend fun download(

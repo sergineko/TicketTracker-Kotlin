@@ -142,7 +142,7 @@ fun ProfileScreen(
     state: TrackerState,
     viewModel: TrackerViewModel,
     account: AccountUiState,
-    accountViewModel: AccountViewModel,
+    openAccount: () -> Unit,
     export: () -> Unit,
     reminders: (Boolean) -> Unit,
 ) {
@@ -152,19 +152,29 @@ fun ProfileScreen(
     ) {
         item { PageHeading(label(R.string.profile)) }
         item {
-            Card(shape = RoundedCornerShape(24.dp)) {
-                Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Icon(
-                        Icons.Outlined.PersonOutline,
-                        null,
-                        Modifier.size(36.dp),
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    AccountPanel(account, accountViewModel)
-                    Text(
-                        stringResource(R.string.outbox_count, state.pendingCount),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+            Card(
+                onClick = openAccount,
+                shape = RoundedCornerShape(24.dp),
+                modifier = Modifier.testTag("profile-account-entry"),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    AccountAvatar(account.account, Modifier.size(48.dp))
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        Text(
+                            account.account?.email ?: label(R.string.account_title),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            accountSummary(account, state.pendingCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Icon(Icons.Outlined.ChevronRight, label(R.string.account_title))
                 }
             }
         }

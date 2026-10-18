@@ -1,6 +1,7 @@
 import { authRoute, session } from './auth.js';
 import { mutate, changes, documentObject, finalizeDocument } from './records.js';
 import { HttpError, json, rateLimit } from './http.js';
+import { storageSummary, optimizeDocument } from './storage.js';
 
 export default {
   async fetch(request, bindings) {
@@ -16,6 +17,11 @@ export default {
       await rateLimit(env, `user:${owner.id}`, 2000, 86400);
       if (path === '/v1/me' && request.method === 'GET')
         return json({ id: owner.id, email: owner.email });
+      if (path === '/v1/storage' && request.method === 'GET')
+        return await storageSummary(env, owner);
+      const optimize = path.match(/^\/v1\/documents\/([^/]+)\/optimize$/);
+      if (optimize && request.method === 'POST')
+        return await optimizeDocument(env, owner, optimize[1]);
       const record = path.match(/^\/v1\/records\/([0-9a-f-]{36})$/i);
       if (record && request.method === 'GET') {
         const row = await env.DB.prepare(

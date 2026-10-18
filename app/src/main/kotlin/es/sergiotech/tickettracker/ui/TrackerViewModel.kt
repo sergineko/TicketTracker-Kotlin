@@ -54,6 +54,7 @@ data class EditorState(
     val error: EditorError? = null,
     val busy: Boolean = false,
     val extracted: Boolean = false,
+    val printedDeadlines: List<PrintedDeadline> = emptyList(),
 )
 
 enum class EditorError {
@@ -191,7 +192,31 @@ constructor(
         else it.copy(lines = it.lines.filterIndexed { i, _ -> i != index })
     }
 
-    fun attach(id: String) = edit { it.copy(documentIds = (it.documentIds + id).distinct()) }
+    fun attach(id: String) = edit { old ->
+        val document = state.value.documents.find { it.id == id }
+        val filled =
+            document?.let { old.withExtraction(ReceiptExtractor().extract(it.extractedText)) }
+                ?: old
+        filled.copy(
+            documentIds = (old.documentIds + id).distinct(),
+            extracted = document != null || old.extracted,
+        )
+    }
+
+    fun applyDeadline(index: Int, deadline: PrintedDeadline) =
+        line(index) {
+            if (deadline !in editor.value.printedDeadlines) it
+            else
+                when (deadline.kind) {
+                    PrintedDeadlineKind.WARRANTY ->
+                        if (it.warrantyEnd.isBlank())
+                            it.copy(warrantyEnd = deadline.date.toString())
+                        else it
+                    PrintedDeadlineKind.RETURN ->
+                        if (it.returnEnd.isBlank()) it.copy(returnEnd = deadline.date.toString())
+                        else it
+                }
+        }
 
     fun save() {
         if (editor.value.busy) return
@@ -327,19 +352,8 @@ constructor(
     }
 
     private fun applyImport(result: ImportResult) = edit { old ->
-        old.copy(
-            merchant = old.merchant.ifBlank { result.extraction.merchant?.value.orEmpty() },
-            date =
-                if (old.original == null && old.date == LocalDate.now().toString())
-                    result.extraction.date?.value?.toString() ?: old.date
-                else old.date,
-            total =
-                old.total.ifBlank {
-                    result.extraction.total?.value?.let { decimal(it.minorUnits) }.orEmpty()
-                },
-            documentIds = (old.documentIds + result.document.id).distinct(),
-            extracted = true,
-        )
+        old.withExtraction(result.extraction)
+            .copy(documentIds = (old.documentIds + result.document.id).distinct(), extracted = true)
     }
 
     fun export(uri: Uri) =
@@ -377,4 +391,52 @@ constructor(
 
         fun decimal(minor: Long) = java.math.BigDecimal.valueOf(minor, 2).toPlainString()
     }
+}
+
+internal fun EditorState.withExtraction(extraction: ReceiptExtraction): EditorState {
+    val emptyLines =
+        lines.all {
+            it.name.isBlank() &&
+                it.price.isBlank() &&
+                it.warrantyEnd.isBlank() &&
+                it.returnEnd.isBlank() &&
+                it.quantity == "1"
+        }
+    val adoptCurrency = original == null && total.isBlank() && emptyLines
+    val extractedTotal =
+        extraction.total?.value?.takeIf { adoptCurrency || it.currency == currency }
+    return copy(
+        merchant = merchant.ifBlank { extraction.merchant?.value.orEmpty() },
+        date =
+            if (original == null && date == LocalDate.now().toString())
+                extraction.date?.value?.toString() ?: date
+            else date,
+        total =
+            total.ifBlank {
+                extractedTotal?.let { TrackerViewModel.decimal(it.minorUnits) }.orEmpty()
+            },
+        currency = if (adoptCurrency) extractedTotal?.currency ?: currency else currency,
+        lines =
+            if (original == null && emptyLines && extraction.items.isNotEmpty())
+                extraction.items.map {
+                    LineDraft(
+                        name = it.name,
+                        quantity = it.quantity.toString(),
+                        price =
+                            it.unitPrice
+                                ?.takeIf { p ->
+                                    p.currency == (extractedTotal?.currency ?: currency)
+                                }
+                                ?.let { p -> TrackerViewModel.decimal(p.minorUnits) }
+                                .orEmpty(),
+                    )
+                }
+            else lines,
+        printedDeadlines =
+            (printedDeadlines + extraction.deadlines)
+                .distinct()
+                .groupBy { it.kind }
+                .values
+                .mapNotNull { it.distinctBy { d -> d.date }.singleOrNull() },
+    )
 }

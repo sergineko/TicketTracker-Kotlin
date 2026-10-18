@@ -40,7 +40,10 @@ class CloudflareSyncController(
         lock.withLock {
             val account = sessions.current() ?: return@withLock
             if (!api.configured) return@withLock
-            _status.value = _status.value.copy(running = true, error = null)
+            _status.value =
+                if (_status.value.ownerId == account.userId)
+                    _status.value.copy(running = true, error = null)
+                else CloudSyncState(running = true, ownerId = account.userId)
             try {
                 val operations =
                     dao.outbox(account.userId).sortedBy {
@@ -69,12 +72,20 @@ class CloudflareSyncController(
                                 requireNotNull(
                                     dao.documentRecord(operation.entityId, account.userId)
                                 )
-                            for (variant in record.variants) api.upload(
-                                objectPath(record.document.id, variant.id),
-                                account.token,
-                                variant.model(),
-                                store,
-                            )
+                            // Persisted payloads are immutable idempotency requests. Honour legacy
+                            // queued uploads too, without uploading new local preview caches.
+                            val declared = JSONObject(operation.payload).getJSONArray("variants")
+                            val uploadIds =
+                                (0 until declared.length())
+                                    .map { declared.getJSONObject(it).getString("id") }
+                                    .toSet()
+                            for (variant in record.variants.filter { it.id in uploadIds }) api
+                                .upload(
+                                    objectPath(record.document.id, variant.id),
+                                    account.token,
+                                    variant.model(),
+                                    store,
+                                )
                             val verified =
                                 api.request(
                                     "/v1/documents/${operation.entityId}/finalize",
@@ -158,7 +169,11 @@ class CloudflareSyncController(
                     }
                     more = response.getBoolean("has_more")
                 } while (more)
-                _status.value = CloudSyncState(lastSuccess = System.currentTimeMillis())
+                _status.value =
+                    CloudSyncState(
+                        lastSuccess = System.currentTimeMillis(),
+                        ownerId = account.userId,
+                    )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: Exception) {
@@ -181,6 +196,37 @@ class CloudflareSyncController(
         )
         api.download(objectPath(document.id, original.id), account.token, original, store)
     }
+
+    override suspend fun storageUsage(): CloudStorageUsage {
+        val account = requireNotNull(sessions.current())
+        return storageUsage(account)
+    }
+
+    private suspend fun storageUsage(account: CloudSession): CloudStorageUsage {
+        val result = api.request("/v1/storage", account.token)
+        check(sessions.current()?.userId == account.userId)
+        val ids = result.getJSONArray("optimizable_ids")
+        return CloudStorageUsage(
+            result.getLong("original_bytes"),
+            result.getLong("derivative_bytes"),
+            result.getInt("documents"),
+            (0 until ids.length()).map { ids.getString(it) },
+        )
+    }
+
+    override suspend fun optimizeStorage() =
+        lock.withLock {
+            val account = requireNotNull(sessions.current())
+            check(
+                dao.outbox(account.userId).isEmpty() &&
+                    dao.conflicts(account.userId).first().isEmpty()
+            )
+            for (id in storageUsage(account).optimizableIds) {
+                currentCoroutineContext().ensureActive()
+                check(sessions.current()?.userId == account.userId)
+                api.request("/v1/documents/$id/optimize", account.token, "POST")
+            }
+        }
 
     override suspend fun resolveConflict(id: String, keepLocal: Boolean) =
         lock.withLock {

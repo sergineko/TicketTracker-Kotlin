@@ -140,8 +140,9 @@ function documentPayload(input, ownerId, id, revision) {
     extracted_text: input.extracted_text || '',
     created_at: Date.now(),
     retention_policy: 'KEEP_ORIGINAL',
+    storage_policy: 'ORIGINAL_ONLY',
     state: 'REMOTE_OBJECT_PENDING_COMMIT',
-    variants,
+    variants: variants.filter((variant) => variant.kind === 'ORIGINAL'),
     revision,
   };
 }
@@ -312,6 +313,17 @@ export async function documentObject(request, env, owner, documentId, variantId)
   )
     .bind(variantId, documentId, owner.id)
     .first();
+  if (!variant && request.method === 'PUT') {
+    // Older Android versions still send their local derivatives. Accept the no-op only
+    // for an owned canonical document; never create an object or disclose another owner.
+    const record = await env.DB.prepare(
+      "SELECT body FROM tt_records WHERE id=? AND owner_id=? AND kind='DOCUMENT'"
+    )
+      .bind(documentId, owner.id)
+      .first();
+    if (record && JSON.parse(record.body).storage_policy === 'ORIGINAL_ONLY')
+      return json({ skipped: true, reason: 'local_derivative' });
+  }
   requireValue(variant, 'not_found', 404);
   if (request.method === 'PUT') {
     const bytes = await readBytes(request, Number(env.MAX_DOCUMENT_BYTES || 26214400));
@@ -330,6 +342,22 @@ export async function documentObject(request, env, owner, documentId, variantId)
       httpMetadata: { contentType: variant.mime_type, cacheControl: 'private, no-store' },
       customMetadata: { sha256: variant.sha256 },
     });
+    if (variant.kind !== 'ORIGINAL') {
+      const record = await env.DB.prepare('SELECT body FROM tt_records WHERE id=? AND owner_id=?')
+        .bind(documentId, owner.id)
+        .first();
+      if (record && JSON.parse(record.body).storage_policy === 'ORIGINAL_ONLY') {
+        // A legacy upload may have started just before optimization. Re-check after
+        // its put so it cannot recreate an orphan derivative behind the cleanup.
+        await env.DOCUMENTS.delete(variant.storage_key);
+        await env.DB.prepare(
+          "DELETE FROM tt_variants WHERE id=? AND owner_id=? AND kind<>'ORIGINAL'"
+        )
+          .bind(variantId, owner.id)
+          .run();
+        return json({ skipped: true, reason: 'local_derivative' });
+      }
+    }
     await env.DB.prepare('UPDATE tt_variants SET verified_at=? WHERE id=? AND owner_id=?')
       .bind(Date.now(), variantId, owner.id)
       .run();

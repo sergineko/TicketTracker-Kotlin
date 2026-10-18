@@ -3,7 +3,18 @@ package es.sergiotech.tickettracker.domain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
-data class AccountInfo(val id: String, val email: String, val expiresAt: Long)
+enum class SignInMethod {
+    UNKNOWN,
+    EMAIL_CODE,
+    GOOGLE,
+}
+
+data class AccountInfo(
+    val id: String,
+    val email: String,
+    val expiresAt: Long,
+    val signInMethod: SignInMethod = SignInMethod.UNKNOWN,
+)
 
 data class EmailChallenge(val id: String)
 
@@ -13,9 +24,17 @@ data class CloudSyncState(
     val running: Boolean = false,
     val lastSuccess: Long? = null,
     val error: String? = null,
+    val ownerId: String? = null,
 )
 
 data class SyncConflict(val id: String, val kind: String, val canKeepLocal: Boolean = true)
+
+data class CloudStorageUsage(
+    val originalBytes: Long,
+    val derivativeBytes: Long,
+    val documents: Int,
+    val optimizableIds: List<String>,
+)
 
 open class CloudOperationException(val errorCode: String) : Exception(errorCode)
 
@@ -45,4 +64,11 @@ interface SyncController {
     suspend fun ensureDocument(document: ReceiptDocument)
 
     suspend fun resolveConflict(id: String, keepLocal: Boolean)
+
+    suspend fun storageUsage(): CloudStorageUsage =
+        throw CloudOperationException("storage_unavailable")
+
+    suspend fun optimizeStorage() {
+        throw CloudOperationException("storage_unavailable")
+    }
 }

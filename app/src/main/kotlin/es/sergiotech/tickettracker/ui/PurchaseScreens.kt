@@ -151,6 +151,26 @@ fun PurchaseEditorScreen(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            if (draft.printedDeadlines.isNotEmpty()) {
+                OutlinedCard {
+                    Column(
+                        Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            label(R.string.ocr_deadlines_title),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Text(
+                            label(R.string.ocr_deadlines_review),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        draft.printedDeadlines.forEach {
+                            Text(it.evidence, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
             draft.lines.forEachIndexed { index, line ->
                 key(line.id) {
                     OutlinedCard {
@@ -204,6 +224,29 @@ fun PurchaseEditorScreen(
                                 R.string.return_end,
                                 optional = true,
                             )
+                            draft.printedDeadlines.forEach { deadline ->
+                                val empty =
+                                    if (deadline.kind == PrintedDeadlineKind.WARRANTY)
+                                        line.warrantyEnd.isBlank()
+                                    else line.returnEnd.isBlank()
+                                if (empty)
+                                    OutlinedButton(
+                                        onClick = { vm.applyDeadline(index, deadline) },
+                                        enabled = !draft.busy,
+                                        modifier =
+                                            Modifier.fillMaxWidth()
+                                                .testTag("ocr-${deadline.kind.name}-$index"),
+                                    ) {
+                                        Text(
+                                            stringResource(
+                                                if (deadline.kind == PrintedDeadlineKind.WARRANTY)
+                                                    R.string.ocr_use_warranty
+                                                else R.string.ocr_use_return,
+                                                deadline.date.toString(),
+                                            )
+                                        )
+                                    }
+                            }
                         }
                     }
                 }

@@ -1,0 +1,42 @@
+<resources>
+    <string name="account_title">Tu cuenta</string>
+    <string name="account_welcome">Tu espacio, contigo</string>
+    <string name="account_welcome_body">Accede para sincronizar tus compras y tickets.</string>
+    <string name="account_loading">Preparando tu cuenta…</string>
+    <string name="account_local_summary">Solo en este móvil</string>
+    <string name="account_connect">Conectar cuenta</string>
+    <string name="account_session_active">Sesión conectada</string>
+    <string name="account_session_private">Cuenta de TicketTracker</string>
+    <string name="account_renew">Vuelve a acceder</string>
+    <string name="access_google">Has accedido con Google</string>
+    <string name="access_email">Has accedido con un código de correo</string>
+    <string name="access_options">Opciones de acceso</string>
+    <string name="access_options_body">Puedes entrar con tu correo o con Google usando la misma dirección. Cambiar de cuenta requiere cerrar esta sesión primero. El acceso con Google solo solicita identidad básica y correo.</string>
+    <string name="cloud_scope_title">Compras y tickets en tu cuenta</string>
+    <string name="cloud_scope_body">Sincroniza los datos de tus compras y los documentos originales. Revisa los cambios pendientes antes de cambiar de móvil.</string>
+    <string name="device_scope_title">Solo en este móvil</string>
+    <string name="device_scope_body">%1$d registros de suscripciones y seguros. Todavía no se sincronizan; se incluyen en tu exportación ZIP.</string>
+    <string name="cloud_purchase_stat">Compras en tu inventario</string>
+    <string name="cloud_document_stat">Tickets con copia verificada</string>
+    <string name="cloud_ready_title">Tu cuenta está preparada</string>
+    <string name="cloud_ready_body">Sincroniza para comprobar los cambios de tu cuenta y de este móvil.</string>
+    <string name="sync_in_progress">Sincronizando tus datos…</string>
+    <string name="sync_needs_attention">Revisa la sincronización</string>
+    <string name="sync_pending_title">Tienes cambios por enviar</string>
+    <string name="sync_up_to_date">Compras y tickets al día</string>
+    <string name="sync_scope_complete">La última comprobación de compras y tickets ha terminado sin cambios pendientes.</string>
+    <string name="last_connection">Última conexión de esta sesión: %1$s</string>
+    <plurals name="pending_cloud_changes"><item quantity="one">%1$d cambio pendiente de enviar</item><item quantity="other">%1$d cambios pendientes de enviar</item></plurals>
+    <string name="or_email">o con tu correo</string>
+    <string name="code_step_title">Comprueba tu correo</string>
+    <string name="code_step_body">Introduce el código enviado a %1$s.</string>
+    <string name="google_connecting">Abriendo el acceso con Google…</string>
+    <string name="account_connecting">Conectando con tu cuenta…</string>
+    <string name="google_device_setup">No se pudo abrir Google. Comprueba que Servicios de Google Play está disponible y actualizado, o accede con un código de correo.</string>
+    <string name="google_retry">Google no ha devuelto una respuesta válida o el acceso ha caducado. Pulsa de nuevo Acceder con Google.</string>
+    <string name="google_signin_failed">No se pudo completar el acceso con Google. Reintenta o accede con un código de correo.</string>
+    <string name="google_clear_failed">Has cerrado la sesión de TicketTracker, pero no se pudo reiniciar el selector de Google. Podrás elegir otra cuenta al volver a acceder.</string>
+    <string name="account_identity_conflict">Elige la misma dirección de esta cuenta. Para usar otra, cierra primero la sesión actual.</string>
+    <string name="signout_title">¿Cerrar esta sesión?</string>
+    <string name="signout_body">Tu inventario seguirá guardado en este móvil y vinculado a esta cuenta. Tendrás que volver a acceder con la misma dirección para consultarlo.</string>
+</resources>

@@ -1,0 +1,9 @@
+<resources>
+    <string name="storage_title">Cloud storage</string>
+    <string name="storage_policy_body">New uploads keep a single intact original. Thumbnails are generated on your phone.</string>
+    <string name="storage_originals">%1$d documents · originals: %2$s</string>
+    <string name="storage_derivatives">Old derivative copies: %1$s</string>
+    <string name="storage_usage_scope">Registered bytes for this account, including upload reservations. This is not your total Cloudflare bill.</string>
+    <string name="storage_refresh">Check storage</string>
+    <string name="storage_optimize">Optimize old copies</string>
+</resources>

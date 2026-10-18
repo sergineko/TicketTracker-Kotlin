@@ -9,6 +9,7 @@ import es.sergiotech.tickettracker.core.database.TicketDatabase
 import es.sergiotech.tickettracker.data.LocalPreferences
 import es.sergiotech.tickettracker.domain.Identity
 import es.sergiotech.tickettracker.domain.IdentityGateway
+import es.sergiotech.tickettracker.domain.SignInMethod
 import java.io.File
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -26,6 +27,7 @@ data class CloudSession(
     val email: String,
     val token: String,
     val expiresAt: Long,
+    val signInMethod: SignInMethod = SignInMethod.UNKNOWN,
 )
 
 class CloudSessionStore(
@@ -65,6 +67,9 @@ class CloudSessionStore(
                             json.getString("email"),
                             json.getString("token"),
                             json.getLong("expires_at"),
+                            SignInMethod.entries.firstOrNull {
+                                it.name == json.optString("sign_in_method")
+                            } ?: SignInMethod.UNKNOWN,
                         )
                     adopt(json.optString("adopt_from"), session.userId)
                     _session.value = session
@@ -104,6 +109,7 @@ class CloudSessionStore(
                         put("email", session.email)
                         put("token", session.token)
                         put("expires_at", session.expiresAt)
+                        put("sign_in_method", session.signInMethod.name)
                         put("adopt_from", anonymous)
                     }
                 val cipher = Cipher.getInstance("AES/GCM/NoPadding")

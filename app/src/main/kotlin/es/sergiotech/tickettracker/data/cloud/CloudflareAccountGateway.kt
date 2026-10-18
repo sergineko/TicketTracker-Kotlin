@@ -14,7 +14,11 @@ class CloudflareAccountGateway(private val api: RemoteApi, private val store: Cl
 
     override val accounts = flow {
         store.current()
-        emitAll(store.sessions.map { it?.let { AccountInfo(it.userId, it.email, it.expiresAt) } })
+        emitAll(
+            store.sessions.map {
+                it?.let { AccountInfo(it.userId, it.email, it.expiresAt, it.signInMethod) }
+            }
+        )
     }
     override val recoveryNeeded = store.recoveryNeeded
 
@@ -35,7 +39,7 @@ class CloudflareAccountGateway(private val api: RemoteApi, private val store: Cl
                 method = "POST",
                 body = JSONObject().put("challenge_id", challengeId).put("code", code),
             )
-        store.activate(response.session())
+        store.activate(response.session(SignInMethod.EMAIL_CODE))
     }
 
     override suspend fun googleChallenge(): GoogleChallenge {
@@ -56,7 +60,7 @@ class CloudflareAccountGateway(private val api: RemoteApi, private val store: Cl
                 method = "POST",
                 body = JSONObject().put("challenge_id", challengeId).put("id_token", idToken),
             )
-        store.activate(response.session())
+        store.activate(response.session(SignInMethod.GOOGLE))
     }
 
     override suspend fun logout() {
@@ -71,12 +75,13 @@ class CloudflareAccountGateway(private val api: RemoteApi, private val store: Cl
     }
 }
 
-private fun JSONObject.session(): CloudSession {
+private fun JSONObject.session(method: SignInMethod): CloudSession {
     val user = getJSONObject("user")
     return CloudSession(
         user.getString("id"),
         user.getString("email"),
         getString("token"),
         getLong("expires_at"),
+        method,
     )
 }

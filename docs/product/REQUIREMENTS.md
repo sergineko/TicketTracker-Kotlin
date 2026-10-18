@@ -9,7 +9,9 @@ La especificación de origen es `SOURCE_SPECIFICATION.md`, transcrita del Word. 
 - Compras manuales con múltiples artículos, edición, borrado lógico y búsqueda.
 - Room observable, transacciones, revisiones y outbox persistente; identidad local estable.
 - Importación de imagen/PDF, OCR local, confirmación editable, conservación de originales e integridad.
-- Fechas manuales de garantía y devolución independientes, alertas y preferencias.
+- Fechas confirmadas de garantía y devolución independientes, alertas y preferencias. OCR propone artículos y fechas absolutas impresas, aplicables por producto con revisión; no calcula periodos ni derechos legales.
+- Nuevas subidas con un solo original íntegro; miniaturas locales. Compatibilidad con outbox anterior y limpieza autenticada de derivados solo tras verificación del original y aprobación de producción.
+- Cuenta integrada con identidad, estado y alcance real de sincronización; tema oscuro sin placa blanca en la marca.
 - Exportación portátil y estado cloud honesto.
 - Documentación y CI; pruebas unitarias e instrumentadas con errores y conflictos.
 - Rediseño según la referencia aportada: tarjetas Productos y garantías, Suscripciones y Seguros, filtros y filas compactas. Contadores Garantía activa, Crítica (30 días) y Devoluciones posibles con fecha manual vigente; las categorías pueden solaparse.

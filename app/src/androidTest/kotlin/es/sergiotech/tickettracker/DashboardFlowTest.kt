@@ -12,6 +12,7 @@ import es.sergiotech.tickettracker.data.RoomCoverageRepository
 import es.sergiotech.tickettracker.data.RoomPurchaseRepository
 import es.sergiotech.tickettracker.domain.*
 import es.sergiotech.tickettracker.ui.TrackerViewModel
+import es.sergiotech.tickettracker.ui.withExtraction
 import java.io.File
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
@@ -22,6 +23,35 @@ import org.junit.Test
 
 class DashboardFlowTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
+
+    @Test
+    fun printedReturnDateIsAppliedOnlyToTheChosenProduct() {
+        compose.waitUntil(30_000) {
+            compose.onAllNodesWithTag("add-menu").fetchSemanticsNodes().isNotEmpty()
+        }
+        check(!File(compose.activity.filesDir, "session.enc").exists())
+        compose.onNodeWithTag("add-menu").performClick()
+        compose.onNodeWithTag("add-purchase").performClick()
+        val vm = ViewModelProvider(compose.activity)[TrackerViewModel::class.java]
+        compose.runOnUiThread {
+            vm.edit {
+                it.withExtraction(
+                    ReceiptExtractor()
+                        .extract(
+                            "TIENDA\nMonitor 39,95\nCable USB 9,95\nTOTAL 49,90 EUR\nDevoluciones hasta 17/11/2026"
+                        )
+                )
+            }
+        }
+        compose.waitForIdle()
+        assertTrue(vm.editor.value.lines.all { it.returnEnd.isBlank() })
+        compose.onNodeWithTag("ocr-RETURN-0").performScrollTo().performClick()
+        assertEquals("2026-11-17", vm.editor.value.lines[0].returnEnd)
+        assertEquals("", vm.editor.value.lines[1].returnEnd)
+        compose.activityRule.scenario.recreate()
+        compose.waitForIdle()
+        assertEquals("2026-11-17", vm.editor.value.lines[0].returnEnd)
+    }
 
     @Test
     fun recordedDatesFilterProductsAndContractTabsOpenTheirRecords() {
@@ -94,23 +124,33 @@ class DashboardFlowTest {
             val vm = ViewModelProvider(compose.activity)[TrackerViewModel::class.java]
             compose.runOnUiThread { vm.retry() }
             compose.waitUntil(15_000) {
-                compose.onAllNodesWithText(names.first()).fetchSemanticsNodes().isNotEmpty()
+                vm.state.value.purchases.any { it.id == purchase.id } &&
+                    vm.state.value.contracts.any { it.id == subscription.id }
             }
+            compose.waitForIdle()
             compose.onRoot().captureToImage().asAndroidBitmap().let { image ->
                 File(context.cacheDir, "reference-dashboard.png").outputStream().use {
                     image.compress(Bitmap.CompressFormat.PNG, 100, it)
                 }
             }
+            compose.onNodeWithTag("home-list").performScrollToNode(hasTestTag("metric-CRITICAL"))
             compose.onNodeWithTag("metric-CRITICAL").performClick()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasText(names[1]))
             compose.onNodeWithText(names[1]).assertExists()
             compose.onNodeWithText(names[0]).assertDoesNotExist()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasTestTag("metric-RETURNS"))
             compose.onNodeWithTag("metric-RETURNS").performClick()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasText(names[2]))
             compose.onNodeWithText(names[2]).assertExists()
             compose.onNodeWithText(names[1]).assertDoesNotExist()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasTestTag("home-tab-1"))
             compose.onNodeWithTag("home-tab-1").performClick()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasText(subscription.name))
             compose.onNodeWithText(subscription.name).assertExists()
             compose.onNodeWithText(names[2]).assertDoesNotExist()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasTestTag("home-tab-2"))
             compose.onNodeWithTag("home-tab-2").performClick()
+            compose.onNodeWithTag("home-list").performScrollToNode(hasText(insurance.name))
             compose.onNodeWithText(insurance.name).assertExists()
         } finally {
             runBlocking {

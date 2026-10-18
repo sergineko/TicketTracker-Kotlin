@@ -306,6 +306,69 @@ test('documents require matching bytes and hashes, stay private, and finalize on
   ).json();
   assert.equal(replay.revision, 2);
 });
+test('legacy clients send three variants but new documents reserve and store only the original', async () => {
+  const bytes = new TextEncoder().encode('original image fixture');
+  const variants = ['ORIGINAL', 'THUMBNAIL', 'OPTIMIZED'].map((kind) => ({
+    id: randomUUID(),
+    kind,
+    mime_type: 'image/png',
+    byte_size: bytes.length,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  }));
+  const body = mutation('DOCUMENT', {
+    display_name: 'Single cloud original',
+    extracted_text: '',
+    variants,
+  });
+  assert.equal(
+    (await api('/v1/sync/mutate', { token: alice.token, method: 'POST', body })).status,
+    200
+  );
+  assert.equal(
+    (await api('/v1/sync/mutate', { token: alice.token, method: 'POST', body })).status,
+    200
+  );
+  const remote = await (await api(`/v1/records/${body.id}`, { token: alice.token })).json();
+  assert.equal(remote.body.storage_policy, 'ORIGINAL_ONLY');
+  assert.deepEqual(
+    remote.body.variants.map((row) => row.kind),
+    ['ORIGINAL']
+  );
+  for (const variant of variants) {
+    const path = `/v1/documents/${body.id}/variants/${variant.id}`;
+    assert.equal(
+      (await api(path, { token: bob.token, method: 'PUT', bytes, type: 'image/png' })).status,
+      404
+    );
+    const uploaded = await api(path, {
+      token: alice.token,
+      method: 'PUT',
+      bytes,
+      type: 'image/png',
+    });
+    assert.equal(uploaded.status, 200);
+    if (variant.kind !== 'ORIGINAL') assert.equal((await uploaded.json()).skipped, true);
+  }
+  assert.equal(
+    (await api(`/v1/documents/${body.id}/finalize`, { token: alice.token, method: 'POST' })).status,
+    200
+  );
+  assert.equal(
+    (
+      await db
+        .prepare('SELECT count(*) AS n FROM tt_variants WHERE document_id=?')
+        .bind(body.id)
+        .first()
+    ).n,
+    1
+  );
+  assert.equal((await api('/v1/storage')).status, 401);
+  assert.equal(
+    (await api(`/v1/documents/${body.id}/optimize`, { token: bob.token, method: 'POST' })).status,
+    404
+  );
+});
+
 test('document references cannot point to another account', async () => {
   const a = await db
     .prepare("SELECT id FROM tt_records WHERE owner_id=? AND kind='DOCUMENT' LIMIT 1")
@@ -350,6 +413,18 @@ function reservedDocument() {
 }
 test('per-user reservation quota aborts metadata, variants and change feed together', async () => {
   const user = await login('quota@example.test');
+  for (let count = 0; count < 3; count++) {
+    assert.equal(
+      (
+        await api('/v1/sync/mutate', {
+          token: user.token,
+          method: 'POST',
+          body: reservedDocument(),
+        })
+      ).status,
+      200
+    );
+  }
   assert.equal(
     (await api('/v1/sync/mutate', { token: user.token, method: 'POST', body: reservedDocument() }))
       .status,
@@ -374,7 +449,7 @@ test('per-user reservation quota aborts metadata, variants and change feed toget
         .bind(user.user.id)
         .first()
     ).count,
-    3
+    4
   );
   assert.equal(
     (
@@ -383,11 +458,16 @@ test('per-user reservation quota aborts metadata, variants and change feed toget
         .bind(user.user.id)
         .first()
     ).count,
-    1
+    4
   );
 });
 test('the project storage cap also applies across separate accounts', async () => {
   const user = await login('global-quota@example.test');
+  assert.equal(
+    (await api('/v1/sync/mutate', { token: user.token, method: 'POST', body: reservedDocument() }))
+      .status,
+    200
+  );
   const response = await api('/v1/sync/mutate', {
     token: user.token,
     method: 'POST',
@@ -402,6 +482,6 @@ test('the project storage cap also applies across separate accounts', async () =
         .bind(user.user.id)
         .first()
     ).count,
-    0
+    1
   );
 });

@@ -2,6 +2,9 @@ package es.sergiotech.tickettracker
 
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.lifecycle.ViewModelProvider
+import es.sergiotech.tickettracker.ui.TrackerViewModel
+import java.io.File
 import org.junit.Rule
 import org.junit.Test
 
@@ -13,6 +16,9 @@ class PurchaseFlowTest {
         val merchant = "Tienda UI ${System.currentTimeMillis()}"
         compose.waitUntil(30_000) {
             compose.onAllNodesWithTag("add-menu").fetchSemanticsNodes().isNotEmpty()
+        }
+        check(!File(compose.activity.filesDir, "session.enc").exists()) {
+            "Use an isolated test device without a cloud session"
         }
         compose.onNodeWithTag("add-menu").performClick()
         compose.onNodeWithTag("add-purchase").performClick()
@@ -37,5 +43,10 @@ class PurchaseFlowTest {
             compose.onAllNodesWithText(merchant).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText("Auriculares de prueba").assertExists()
+        val vm = ViewModelProvider(compose.activity)[TrackerViewModel::class.java]
+        compose.runOnUiThread {
+            vm.state.value.purchases.find { it.merchant == merchant }?.let(vm::delete)
+        }
+        compose.waitUntil(15_000) { vm.state.value.purchases.none { it.merchant == merchant } }
     }
 }

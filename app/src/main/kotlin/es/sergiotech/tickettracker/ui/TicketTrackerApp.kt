@@ -254,7 +254,12 @@ fun TicketTrackerApp(
                                     { nav.navigate("contracts/${it.name}") },
                                     { nav.navigate("contract/${it.kind.name}/${it.id}") },
                                     { nav.navigate("detail/$it") },
+                                    accountState,
+                                    { nav.navigate("account") },
                                 )
+                            }
+                            composable("account") {
+                                AccountScreen(state, accountState, accountVm) { nav.popBackStack() }
                             }
                             composable("contracts/{kind}") { backStack ->
                                 val kind =
@@ -295,7 +300,7 @@ fun TicketTrackerApp(
                                     state,
                                     vm,
                                     accountState,
-                                    accountVm,
+                                    { nav.navigate("account") },
                                     {
                                         export.launch(
                                             "TicketTracker-${java.time.LocalDate.now()}.zip"

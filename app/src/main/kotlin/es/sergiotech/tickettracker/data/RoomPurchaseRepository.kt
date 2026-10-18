@@ -183,7 +183,7 @@ class RoomPurchaseRepository(
                     newId(),
                     "DOCUMENT",
                     0,
-                    saved.json().toString(),
+                    saved.cloudJson().toString(),
                     saved.createdAt,
                 )
             )

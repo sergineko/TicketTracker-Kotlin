@@ -1,0 +1,6 @@
+<resources>
+    <string name="ocr_deadlines_title">Fechas impresas detectadas</string>
+    <string name="ocr_deadlines_review">Comprueba el texto y aplica cada fecha al producto que corresponda. No se deduce un plazo legal ni se confirma que la política sea aplicable. Puedes editarla antes de guardar.</string>
+    <string name="ocr_use_warranty">Usar garantía: %1$s</string>
+    <string name="ocr_use_return">Usar devolución: %1$s</string>
+</resources>

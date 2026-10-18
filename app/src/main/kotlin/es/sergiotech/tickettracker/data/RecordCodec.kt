@@ -47,6 +47,11 @@ internal fun Purchase.json(): JSONObject =
         )
     }
 
+internal fun ReceiptDocument.cloudJson(): JSONObject =
+    copy(variants = variants.filter { it.kind == VariantKind.ORIGINAL }).json().apply {
+        put("storage_policy", "ORIGINAL_ONLY")
+    }
+
 internal fun ReceiptDocument.json(): JSONObject =
     JSONObject().apply {
         put("schema_version", 1)

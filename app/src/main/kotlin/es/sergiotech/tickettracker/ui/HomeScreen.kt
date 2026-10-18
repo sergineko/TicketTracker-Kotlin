@@ -1,7 +1,6 @@
 package es.sergiotech.tickettracker.ui
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -21,7 +20,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -49,6 +47,8 @@ fun HomeScreen(
     contracts: (ContractKind) -> Unit,
     editContract: (TrackedContract) -> Unit,
     detail: (String) -> Unit,
+    account: AccountUiState,
+    openAccount: () -> Unit,
 ) {
     val today = LocalDate.now()
     var tab by rememberSaveable { mutableIntStateOf(0) }
@@ -58,6 +58,7 @@ fun HomeScreen(
     val kind = if (tab == 1) ContractKind.SUBSCRIPTION else ContractKind.INSURANCE
     val selectedContracts = state.contracts.filter { it.kind == kind }
     LazyColumn(
+        modifier = Modifier.testTag("home-list"),
         contentPadding = PaddingValues(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(7.dp),
     ) {
@@ -67,6 +68,7 @@ fun HomeScreen(
                 filter = ProductFilter.CRITICAL
             }
         }
+        item { AccountBadge(account, state.pendingCount, openAccount) }
         item {
             WarrantyOverview(state, products.map { it.second }, today, all) {
                 tab = 0
@@ -207,11 +209,7 @@ private fun BrandHeading(search: () -> Unit, alerts: () -> Unit) {
         Modifier.fillMaxWidth().padding(bottom = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            painterResource(R.drawable.brand_icon),
-            null,
-            Modifier.size(45.dp).clip(RoundedCornerShape(11.dp)),
-        )
+        BrandSymbol(Modifier.size(45.dp))
         Spacer(Modifier.width(8.dp))
         Column(Modifier.weight(1f)) {
             Text(

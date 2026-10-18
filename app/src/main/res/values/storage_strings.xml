@@ -1,0 +1,9 @@
+<resources>
+    <string name="storage_title">Espacio en la nube</string>
+    <string name="storage_policy_body">Las nuevas subidas guardan un solo original íntegro. Las miniaturas se generan en el móvil.</string>
+    <string name="storage_originals">%1$d documentos · originales: %2$s</string>
+    <string name="storage_derivatives">Copias derivadas antiguas: %1$s</string>
+    <string name="storage_usage_scope">Bytes registrados para esta cuenta, incluidas reservas de subidas. No representa la factura total de Cloudflare.</string>
+    <string name="storage_refresh">Consultar espacio</string>
+    <string name="storage_optimize">Optimizar copias antiguas</string>
+</resources>

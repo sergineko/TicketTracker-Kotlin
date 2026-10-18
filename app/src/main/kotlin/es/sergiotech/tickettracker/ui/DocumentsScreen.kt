@@ -85,16 +85,12 @@ fun DocumentsScreen(
 
 @Composable
 private fun DocumentThumbnail(document: ReceiptDocument, store: PrivateDocumentStore) {
-    val thumbnail = document.variants.firstOrNull { it.kind == VariantKind.THUMBNAIL }
     val bitmap by
-        produceState<ImageBitmap?>(null, thumbnail?.id) {
+        produceState<ImageBitmap?>(null, document.id, document.state) {
             value =
                 withContext(Dispatchers.IO) {
-                    thumbnail?.let {
-                        store
-                            .file(it)
-                            .takeIf { file -> file.isFile }
-                            ?.let { file -> BitmapFactory.decodeFile(file.path)?.asImageBitmap() }
+                    store.preview(document)?.let {
+                        BitmapFactory.decodeFile(it.path)?.asImageBitmap()
                     }
                 }
         }

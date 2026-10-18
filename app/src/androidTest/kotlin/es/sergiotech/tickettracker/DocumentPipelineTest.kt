@@ -33,7 +33,7 @@ class DocumentPipelineTest {
     @Test
     fun imageOcrRecognizesTotalAndRetainsOriginalBytes() = runTest {
         val input = temp("png")
-        val bitmap = Bitmap.createBitmap(1000, 800, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(1000, 1000, Bitmap.Config.ARGB_8888)
         Canvas(bitmap).apply {
             drawColor(Color.WHITE)
             val paint =
@@ -44,7 +44,10 @@ class DocumentPipelineTest {
                 }
             drawText("TIENDA EJEMPLO", 60f, 150f, paint)
             drawText("17/10/2026", 60f, 270f, paint)
-            drawText("TOTAL 39,95", 60f, 430f, paint)
+            drawText("Monitor 39,95", 60f, 380f, paint)
+            drawText("TOTAL 39,95", 60f, 490f, paint)
+            paint.textSize = 38f
+            drawText("Devoluciones hasta 17/11/2026", 60f, 620f, paint)
         }
         input.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
@@ -54,10 +57,25 @@ class DocumentPipelineTest {
                 assertFalse(result.ocrFailed)
                 assertTrue(result.document.extractedText.contains("39,95"))
                 assertEquals(Money(3995), result.extraction.total?.value)
+                assertEquals(
+                    listOf(ReceiptItem("Monitor", 1, Money(3995))),
+                    result.extraction.items,
+                )
+                assertEquals(
+                    java.time.LocalDate.of(2026, 11, 17),
+                    result.extraction.deadlines.single().date,
+                )
                 val original = result.document.variants.first { it.kind == VariantKind.ORIGINAL }
                 assertEquals(PrivateDocumentStore.sha256(input), original.sha256)
                 assertTrue(store.verify(original))
                 assertTrue(result.document.variants.any { it.kind == VariantKind.THUMBNAIL })
+                assertFalse(result.document.variants.any { it.kind == VariantKind.OPTIMIZED })
+                val restored = result.document.copy(variants = listOf(original))
+                val preview = store.preview(restored)
+                assertNotNull(preview)
+                assertTrue(preview!!.length() < original.byteSize)
+                assertTrue(store.verify(original))
+                preview.delete()
             } finally {
                 store.discardUncommitted(result.document)
             }

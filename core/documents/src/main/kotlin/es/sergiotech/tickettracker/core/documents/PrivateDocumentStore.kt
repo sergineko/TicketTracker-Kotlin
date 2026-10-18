@@ -54,6 +54,50 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
             target.isFile && target.length() == variant.byteSize && sha256(target) == variant.sha256
         }
 
+    /** Regenerable, private device cache. It is never part of cloud metadata or the outbox. */
+    suspend fun preview(document: ReceiptDocument): File? =
+        withContext(Dispatchers.IO) {
+            document.variants
+                .firstOrNull { it.kind == VariantKind.THUMBNAIL }
+                ?.let { if (verify(it)) return@withContext file(it) }
+            val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
+            val cache =
+                File(
+                    File(context.cacheDir, "document-previews").apply { mkdirs() },
+                    "${original.sha256}.jpg",
+                )
+            if (cache.isFile && cache.length() > 0) return@withContext cache
+            if (!verify(original)) return@withContext null
+            try {
+                val source = file(original)
+                val bitmap =
+                    if (original.mimeType == "application/pdf") pdfPreview(source)
+                    else {
+                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                        BitmapFactory.decodeFile(source.path, bounds)
+                        decodeImage(source, bounds)
+                    }
+                try {
+                    val thumb = scaled(bitmap, 320)
+                    try {
+                        cache.outputStream().use {
+                            check(thumb.compress(Bitmap.CompressFormat.JPEG, 80, it))
+                        }
+                    } finally {
+                        if (thumb !== bitmap) thumb.recycle()
+                    }
+                } finally {
+                    bitmap.recycle()
+                }
+                cache
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                cache.delete()
+                null
+            }
+        }
+
     suspend fun saveDownloaded(variant: DocumentVariant, input: InputStream) =
         withContext(Dispatchers.IO) {
             require(variant.byteSize in 1..MAX_BYTES)
@@ -173,18 +217,8 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
                         if (thumb !== bitmap) thumb.recycle()
                     }
 
-                    // Preserve every original. PDFs are never rewritten or rasterized for storage.
-                    if (!pdf) {
-                        val optimized = File(directory, "optimized.jpg")
-                        val quality =
-                            if (bitmap.width.toLong() * bitmap.height > 3_000_000) 90 else 94
-                        optimized.outputStream().use {
-                            check(bitmap.compress(Bitmap.CompressFormat.JPEG, quality, it))
-                        }
-                        if (optimized.length() < original.length() * 0.9)
-                            variants += variant(id, optimized, VariantKind.OPTIMIZED, "image/jpeg")
-                        else optimized.delete()
-                    }
+                    // Keep one untouched original and a small device-only preview. No second
+                    // full-size JPEG: it was unused and consumed both local and remote space.
                 } finally {
                     bitmap.recycle()
                 }

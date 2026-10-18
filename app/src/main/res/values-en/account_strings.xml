@@ -1,0 +1,42 @@
+<resources>
+    <string name="account_title">Your account</string>
+    <string name="account_welcome">Your space, with you</string>
+    <string name="account_welcome_body">Sign in to sync your purchases and receipts.</string>
+    <string name="account_loading">Preparing your account…</string>
+    <string name="account_local_summary">Only on this phone</string>
+    <string name="account_connect">Connect account</string>
+    <string name="account_session_active">Signed in</string>
+    <string name="account_session_private">TicketTracker account</string>
+    <string name="account_renew">Sign in again</string>
+    <string name="access_google">Signed in with Google</string>
+    <string name="access_email">Signed in with an email code</string>
+    <string name="access_options">Sign-in options</string>
+    <string name="access_options_body">Use email or Google with the same address. Sign out before switching accounts. Google access only requests basic identity and email.</string>
+    <string name="cloud_scope_title">Purchases and receipts in your account</string>
+    <string name="cloud_scope_body">Sync purchase details and original documents. Review pending changes before switching phones.</string>
+    <string name="device_scope_title">Only on this phone</string>
+    <string name="device_scope_body">%1$d subscription and insurance records. They do not sync yet; they are included in your ZIP export.</string>
+    <string name="cloud_purchase_stat">Purchases in your inventory</string>
+    <string name="cloud_document_stat">Receipts with verified copies</string>
+    <string name="cloud_ready_title">Your account is ready</string>
+    <string name="cloud_ready_body">Sync to check changes in your account and on this phone.</string>
+    <string name="sync_in_progress">Syncing your data…</string>
+    <string name="sync_needs_attention">Review synchronization</string>
+    <string name="sync_pending_title">You have changes to send</string>
+    <string name="sync_up_to_date">Purchases and receipts up to date</string>
+    <string name="sync_scope_complete">The last purchase and receipt check completed with no pending changes.</string>
+    <string name="last_connection">Last connection in this session: %1$s</string>
+    <plurals name="pending_cloud_changes"><item quantity="one">%1$d change to send</item><item quantity="other">%1$d changes to send</item></plurals>
+    <string name="or_email">or use your email</string>
+    <string name="code_step_title">Check your email</string>
+    <string name="code_step_body">Enter the code sent to %1$s.</string>
+    <string name="google_connecting">Opening Google sign-in…</string>
+    <string name="account_connecting">Connecting to your account…</string>
+    <string name="google_device_setup">Could not open Google. Check that Google Play services is available and updated, or use an email code.</string>
+    <string name="google_retry">Google returned an invalid response or sign-in expired. Press Sign in with Google again.</string>
+    <string name="google_signin_failed">Could not complete Google sign-in. Try again or use an email code.</string>
+    <string name="google_clear_failed">You signed out of TicketTracker, but the Google account chooser could not be reset. You can choose another account when signing in again.</string>
+    <string name="account_identity_conflict">Choose the same email address as this account. Sign out first to use another account.</string>
+    <string name="signout_title">Sign out?</string>
+    <string name="signout_body">Your inventory will stay on this phone, linked to this account. Sign in with the same address to access it again.</string>
+</resources>
