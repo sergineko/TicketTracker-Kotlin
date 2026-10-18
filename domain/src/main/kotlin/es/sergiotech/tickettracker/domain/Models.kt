@@ -103,6 +103,8 @@ data class ReceiptDocument(
     val extractedText: String = "",
     val state: DocumentState = DocumentState.LOCAL_ONLY,
     val createdAt: Long = System.currentTimeMillis(),
+    val sourceOriginalSha256: String =
+        variants.firstOrNull { it.kind == VariantKind.ORIGINAL }?.sha256.orEmpty(),
 )
 
 data class Identity(val id: String, val isLocal: Boolean = true)

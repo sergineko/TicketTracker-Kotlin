@@ -78,7 +78,7 @@
     <string name="extracted_notice">Hemos encontrado estos datos. Revísalos antes de guardar; el reconocimiento puede equivocarse. Los artículos se añaden manualmente.</string>
     <string name="saving">Guardando…</string>
     <string name="processing">Preparando tu documento</string>
-    <string name="processing_body">Validando, leyendo el texto y creando una miniatura en este dispositivo. Los PDF conservan el original; se reconoce la primera página.</string>
+    <string name="processing_body">Leyendo el texto y preparando una copia ligera y legible. El original se conserva en este móvil. En PDF se reconoce solo la primera página.</string>
     <string name="import_error">No se pudo importar. Usa una imagen válida o un PDF sin contraseña de hasta 25 MB y comprueba que tienes espacio libre.</string>
     <string name="duplicate_notice">Este justificante ya estaba guardado. No hemos duplicado el archivo.</string>
     <string name="ocr_failed">El documento está guardado. No se pudo reconocer el texto; puedes registrar la compra manualmente.</string>
@@ -104,7 +104,7 @@
     <string name="return_deadline">Devolución · %1$s</string>
     <string name="warranty_deadline">Garantía · %1$s</string>
     <string name="confirmed_date">Fecha indicada por ti</string>
-    <string name="open_original">Abrir original</string>
+    <string name="open_original">Abrir documento</string>
     <string name="open_error">No se pudo abrir el documento. Comprueba su integridad y que tienes un visor compatible.</string>
     <string name="local_document">Original conservado · Solo local</string>
     <string name="unlinked_document">Sin asociar a una compra</string>
@@ -155,7 +155,7 @@
     <string name="notification_body">Revisa las garantías y devoluciones de tus artículos en TicketTracker.</string>
     <string name="notification_channel">Garantías y devoluciones</string>
     <string name="export">Exportar mis datos</string>
-    <string name="export_body">ZIP con compras, suscripciones, seguros, documentos originales y hashes de integridad. Contiene información privada sin cifrar: guárdalo en un lugar seguro.</string>
+    <string name="export_body">ZIP con compras, suscripciones, seguros y archivos disponibles con sus hashes. Incluye los originales locales; si solo existe la copia optimizada, el manifiesto lo indica. Contiene información privada sin cifrar: guárdalo en un lugar seguro.</string>
     <string name="export_success">Exportación completada</string>
     <string name="export_error">La exportación no terminó. El archivo puede estar incompleto; elimínalo y vuelve a exportar.</string>
     <string name="settings_error">No se pudo guardar la preferencia</string>

@@ -10,7 +10,7 @@ La especificación de origen es `SOURCE_SPECIFICATION.md`, transcrita del Word. 
 - Room observable, transacciones, revisiones y outbox persistente; identidad local estable.
 - Importación de imagen/PDF, OCR local, confirmación editable, conservación de originales e integridad.
 - Fechas confirmadas de garantía y devolución independientes, alertas y preferencias. OCR propone artículos y fechas absolutas impresas, aplicables por producto con revisión; no calcula periodos ni derechos legales.
-- Nuevas subidas con un solo original íntegro; miniaturas locales. Compatibilidad con outbox anterior y limpieza autenticada de derivados solo tras verificación del original y aprobación de producción.
+- R2 conserva una sola imagen optimizada por documento, hasta 2 MiB y sin superar el origen; el original y miniaturas quedan en el móvil (ADR 0005). PDF único íntegro. Compatibilidad con outbox anterior, recuperación de la copia optimizada y limpieza remota solo tras verificar el reemplazo y aprobar el inventario de producción.
 - Cuenta integrada con identidad, estado y alcance real de sincronización; tema oscuro sin placa blanca en la marca.
 - Exportación portátil y estado cloud honesto.
 - Documentación y CI; pruebas unitarias e instrumentadas con errores y conflictos.

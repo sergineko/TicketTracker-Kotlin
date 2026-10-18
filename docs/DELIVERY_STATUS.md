@@ -1,45 +1,41 @@
 # Estado de entrega
 
-Actualizado el 18/10/2026. Versión de pruebas **0.1.2**. **El MVP cloud no está terminado.** Backend D1 + Worker + R2 privado y acceso por código de correo + Google (ADR 0002). Suscripciones y seguros siguen siendo locales (ADR 0003). Original único y propuestas OCR: ADR 0004. Nuevo despliegue de almacenamiento preparado, pendiente de aprobación.
+Actualizado el 18/10/2026. Versión de pruebas **0.1.3**, versionCode 4. **El MVP cloud no está terminado.** Cloudflare D1 + Worker + R2 privado, acceso por código de correo y Google (ADR 0002). Suscripciones y seguros siguen locales (ADR 0003). Una imagen optimizada remota y original local: ADR 0005, que sustituye la parte de almacenamiento cloud de ADR 0004.
 
 ## Evidencia actual
 
 | Área | Estado | Evidencia y límites |
 | --- | --- | --- |
-| APK personal 0.1.2 | VERIFIED_LOCAL | versionCode 3, universal Android 10+, 123462149 bytes; firma debug v2 registrada para Google. Instalado y probado en AVD API 36 |
-| Dominio | VERIFIED_LOCAL | 23 pruebas JVM: importes, fechas civiles, contadores, artículos/cantidades/monedas y propuestas OCR conservadoras |
-| Android | VERIFIED_LOCAL | Suite completa de 27 pruebas, cero fallos, en AVD propio API 36; seis flujos Compose repetidos con fuente al 130 % en oscuro, cero fallos |
-| Room v4 | VERIFIED_LOCAL | Migraciones 1/2/3→4, compras/líneas/productos separados, CAS, outbox, contratos por cuenta y exportación ZIP v2 con originales íntegros |
-| Documentos/OCR | VERIFIED_LOCAL | OCR real de imagen reconoce artículo, total y fecha impresa de devolución. Original con hash idéntico, PDF byte a byte, miniatura regenerable y rechazo de corrupto/tamaño excesivo |
-| Borrador OCR | VERIFIED_LOCAL | Propone artículos sin sustituir campos escritos. Fechas impresas exigen aplicar por producto; prueba de selección y recreación. No calcula plazos legales ni periodos |
-| Transporte Android | VERIFIED_LOCAL | Ocho pruebas con Room/Keystore reales y transporte controlado: cuentas separadas, conflictos, ACK, rollback, descarga íntegra y conservación ante fallo. Solo ORIGINAL en nueva outbox; payload anterior de tres variantes permanece compatible |
-| Cuenta y Google | USER_REPORTED / VERIFIED_LOCAL | El propietario confirma que Google crea sesión en su móvil. Nueva pantalla con identidad, estado y alcance de sync, acceso secundario y cierre con limpieza de Credential Manager. Estados conectado/caducado/pendiente/error probados; no equivalen a un nuevo login real del agente |
-| Diseño | VERIFIED_LOCAL | Cabecera con símbolo transparente sobre fondo nativo claro/oscuro, resumen según referencia, garantías activas/críticas/devoluciones y contratos locales. No usa el icono con placa blanca en la cabecera |
-| Suscripciones/seguros | LOCAL_ONLY | CRUD, aislamiento, adopción y ZIP probados. Sin transporte cloud, avisos, cobros ni renovación automática |
-| Worker nuevo | VERIFIED_LOCAL_NOT_DEPLOYED | 25 tests Miniflare, cero fallos: idempotencia, cuotas, aislamiento, original corrupto/ausente, limpieza interrumpida y subida antigua concurrente. Prettier y dry-run correctos |
-| Worker actual | DEPLOYED_PREVIOUS_VERSION | https://tickettracker-api.sergiotech.workers.dev con D1/R2 UE privados, Resend y pepper cifrados, cron solo de autenticación. El nuevo inventario de almacenamiento requiere aprobación |
-| R2 actual | READ_ONLY_INVENTORY | Último inventario: tres originales registrados/verificados, 6217491 bytes, y cuatro derivados, 1412320 bytes. El inventario aumentó por nuevas subidas durante la revisión. No se han borrado copias ni originales |
-| Producción anterior | PARTIALLY_VERIFIED | Ensayo HTTPS real de correo, sesión, replay, CAS, feed y R2 SHA-256 con PDF sintético de 616 bytes. Ver integrations/PRODUCTION_VALIDATION.md |
-| Compilación y estático | VERIFIED_LOCAL | Debug, release optimizada sin firma, Spotless y Lint app/database/documents: cero errores, 67 avisos de versiones/SDK/recursos/estilo |
-| CI | FIX_PREPARED | f207662: build y Worker correctos; resumen falló en API 29/36 al buscar un elemento fuera de pantalla (run 39076808794). Reproducido y corregido con espera de datos y scroll; resultado remoto nuevo pendiente. PR #11 Kotlin/Hilt incompatible sin integrar |
-| Supabase/Coolify | HISTORICAL_READ_ONLY | Fuera del producto. No se modifican VPS, bases compartidas ni otros proyectos |
+| APK personal 0.1.3 | VERIFIED_LOCAL | Universal Android 10+, 123824433 bytes, firma debug v2 del piloto Google. Instalación y suite en AVD propio API 36 |
+| Dominio | VERIFIED_LOCAL | 23 pruebas JVM, cero fallos: importes, fechas civiles, contadores y propuestas OCR conservadoras |
+| Android | VERIFIED_LOCAL | Suite final OK (31 tests): 30 casos funcionales sin fallos y una sonda de imagen privada omitida al no aportar entrada; esa sonda se ejecutó expresamente con las dos imágenes reales, fuera de CI |
+| Room v4 | VERIFIED_LOCAL | Migraciones 1/2/3→4, compras/líneas/productos separados, CAS, outbox y contratos por cuenta. Sin migración de esquema en este incremento |
+| Imagen única cloud | VERIFIED_LOCAL / DEPLOYED | Solo OPTIMIZED, hasta 2 MiB y nunca mayor que el origen. WebP con control visual y de datos OCR; original y miniaturas locales. No sube el original grande si falla la optimización. PDF único íntegro |
+| Recuperación/exportación | VERIFIED_LOCAL | Descarga de copia optimizada sin ORIGINAL, SHA-256 y reemplazo atómico; ZIP v3 indica originales ausentes. Reimportar el original de una imagen recuperada lo conserva y evita duplicar el documento. No acredita recuperación real entre móviles |
+| Transporte Android | VERIFIED_LOCAL | Once casos con Room/Keystore reales y transporte controlado: cuentas separadas, ACK, conflictos, rollback, subida solo OPTIMIZED, rebasing de outbox antigua, integridad, copia optimizada, bloqueo del fallback grande y reintento de limpieza sin fuente remota |
+| OCR y borrador | VERIFIED_LOCAL | Comercio, fecha, total, artículos/cantidades/precios y fechas absolutas impresas. Aplicación por producto sin sustituir campos escritos. PDF OCR solo primera página; no calcula plazos legales |
+| Cuenta y Google | USER_REPORTED / VERIFIED_LOCAL | El propietario confirmó Google correcto en su móvil. Pantalla con identidad, estado y alcance; acceso/cierre secundarios. No se afirma un nuevo login real del agente en este incremento |
+| Diseño | VERIFIED_LOCAL | Marca transparente sobre fondo nativo claro/oscuro, resumen según referencia y contadores Garantía activa / Crítica / Devoluciones posibles. Los seis flujos Compose ya se probaron con fuente al 130 % en oscuro en 0.1.2 |
+| Suscripciones/seguros | LOCAL_ONLY | CRUD, aislamiento, adopción y ZIP. Sin transporte cloud, avisos, cobros ni renovación automática |
+| Worker | DEPLOYED / VERIFIED_LOCAL | 30 pruebas Miniflare sin fallos: idempotencia, cuotas, aislamiento, PDF con preview antigua, conversión por etapas, corrupción, interrupciones y concurrencia. Prettier y dry-run correctos |
+| Producción actual | DEPLOYED | Worker b6be4643cbc04222a56244fc7c5d03d0, hash 95552df3e9235539afcce37b5f30a627a8da095295b1a8a4df7dcefc22e3d171. Configuración, secretos cifrados, cuotas y cron conservados; health 200, storage sin sesión 401 |
+| R2/D1 reales | VERIFIED | Dos WebP descargados desde R2 con tamaño/hash coincidentes; dos documentos en revisión 4 y OPTIMIZED_IMAGE. Tras confirmación final se retiraron solo los dos JPEG anteriores. Quedan 2 imágenes (1933580 bytes) + 1 PDF (616), total 1934196 bytes; ahorro 68,9 % frente a 6217491. Originales locales verificados y preservados |
+| Compilación/estático | VERIFIED_LOCAL | Debug y release optimizada sin firma, dominio y Lint app/database/documents sin errores. Avisos pendientes de versiones/SDK/recursos/estilo; no equivalen a errores de compilación |
+| CI anterior | VERIFIED | 57485dd, run 39119777386: build, Worker y dispositivos API 29/36 correctos. El CI del nuevo código se valida tras subir este incremento. PR #11 Kotlin/Hilt incompatible sigue sin integrar |
+| Supabase/Coolify | HISTORICAL_READ_ONLY | Fuera del producto; sin cambios en VPS, bases compartidas ni otros proyectos |
 
-VERIFIED_LOCAL acredita solo la prueba indicada; no acredita recuperación real entre móviles. USER_REPORTED distingue la observación del propietario de las pruebas realizadas por el agente.
+VERIFIED_LOCAL acredita solo la prueba indicada. Los fixtures sintéticos y las capturas de pruebas no se incluyen en la APK. Las imágenes reales se procesaron mediante entrada local explícita y no forman parte de los tests ni de Git.
 
-## Entrega y comprobaciones
+## APK y validación
 
-APK en `entregas/TicketTracker-0.1.2-pruebas.apk`, con hash e instrucciones. SHA-256 `f06794cd5bf5a16f77e8494216210dc315deeeef909de3224d60fc72b777e57c`. Certificado SHA-1 `26:3A:4B:18:60:7F:E2:CD:88:56:57:1E:BB:3F:34:7E:DF:AF:CE:D2`; ABI arm64-v8a/armeabi-v7a/x86/x86_64, minSdk 29 y targetSdk 36. La APK no contiene registros de demostración, claves Cloudflare/Resend ni secretos OAuth.
+`entregas/TicketTracker-0.1.3-pruebas.apk`. SHA-256 `1a71fa6b9b020b695d96eb5959b0dd46c4ab2005225b202c82797d35eec1a052`. Certificado SHA-1 `26:3A:4B:18:60:7F:E2:CD:88:56:57:1E:BB:3F:34:7E:DF:AF:CE:D2`, registrado en Google. ABI arm64-v8a/armeabi-v7a/x86/x86_64, minSdk 29, targetSdk 36. No incluye claves administrativas, tokens ni secretos OAuth. Instalar como actualización con la misma firma; las versiones de prueba anteriores asumían ORIGINAL en el formato remoto.
 
-Ejecutados `:domain:test`, `spotlessCheck`, `:app:assembleDebug`, `:app:assembleDebugAndroidTest`, `:app:assembleRelease`, Lint de app/database/documents y la suite instrumentada mediante ADB sobre el APK exacto. Backend: `node --test --test-concurrency=1 test/*.test.mjs`, Prettier y `wrangler deploy --dry-run`. Informes y capturas en `.local/` y `build/`, excluidos de Git; capturas pobladas solo con fixtures identificados como prueba.
+Ejecutados dominio, Spotless, assembleDebug, assembleDebugAndroidTest, assembleRelease y Lint, suite instrumentada mediante ADB sobre el código final. Worker: node --test --test-concurrency=1 test/*.test.mjs, Prettier y deploy --dry-run. Logs/capturas en .local/ y build/, excluidos de Git. AVD API 36 propio; no se usa el emulador API 37.2 del propietario. La release sin firma no es la APK debug entregada. API 29 se comprueba mediante CI, sin nueva ejecución local.
 
-El AVD API 36 es propio del proyecto; no se utiliza el emulador API 37.2 del propietario. API 29 está en CI, sin nueva ejecución local. La release optimizada no es el APK debug firmado que se entrega. Las copias anteriores se conservan en el archivo local de artefactos.
+## Producción y límites
 
-## Próximo paso de producción
+El inventario `integrations/OPTIMIZED_IMAGES_DEPLOYMENT.md` se aprobó y ejecutó con confirmación final del borrado. Descargas reales R2, hashes, revisión/feed y repetición idempotente comprobados. Evidencia privada en .local/optimized-r2-verification.json, .local/optimized-storage-proof.json y .local/optimized-r2-after.png. Wrangler cerrado. La limpieza previa de cuatro derivados también terminó y consta en su inventario histórico.
 
-Revisar y aprobar `integrations/STORAGE_OPTIMIZATION_DEPLOYMENT.md`: publicar el Worker con los mismos bindings/secretos/cuotas y retirar únicamente los cuatro derivados del manifiesto inventariado después de comprobar sus originales. No hay tablas nuevas, migraciones, cambio de plan, bucket público o limpieza de originales. El botón de consulta/optimización necesita ese Worker publicado; las nuevas subidas Android de original único son compatibles con el Worker anterior.
+Los controles de compresión no garantizan OCR exacto ni lectura universal QR/barras. La foto con texto fino conserva su resolución completa; la app puede dejar pendiente una imagen que no logre comprimir con calidad suficiente. PDF no se rasteriza. El ZIP sigue sin restaurador integrado.
 
-La comprobación HTTPS `/health` ya responde 200 desde este equipo; el timeout local documentado anteriormente no se reproduce en esta revisión. Queda pendiente validar el transporte Android real y la recuperación de originales en otra instalación antes de afirmar recuperación cloud completa.
-
-## Límites
-
-Google sigue en modo de pruebas, sin Gmail ni publicación en Play. Cámara, Sharesheet con apps reales, notificaciones bajo Doze y dispositivo físico requieren validación. OCR PDF solo procesa la primera página; las propuestas de artículos/fechas pueden requerir corrección. La regla de fecha impresa no entiende condiciones jurídicas completas o situadas en otra línea y siempre exige revisión. No hay recorte/perspectiva/multipágina, motor jurídico, devolución parcial, restaurador ZIP, eliminación de cuenta, backup independiente D1/R2 ensayado o compactación de feed. El borrador de compra no sobrevive a la muerte del proceso. No se han medido precisión/costes bajo carga. No borrar el último original ni depender aún de la nube para desinstalar o cambiar de móvil.
+Google continúa en modo de pruebas, sin Gmail ni publicación en Play. Quedan por validar recuperación real Android entre instalaciones con sesión, cámara/compartir con otras apps en un móvil físico y notificaciones bajo Doze. No hay recorte/perspectiva/multipágina, motor jurídico, devolución parcial, eliminación de cuenta, backup independiente D1/R2 ensayado o compactación de feed. El borrador no sobrevive a la muerte del proceso. Sin medición de precisión/costes bajo carga. Conservar exportaciones y el último original antes de desinstalar o cambiar de móvil.

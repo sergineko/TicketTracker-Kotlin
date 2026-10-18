@@ -73,7 +73,11 @@ sealed interface UiEvent {
 
     data object Deleted : UiEvent
 
-    data class Imported(val duplicate: Boolean, val ocrFailed: Boolean) : UiEvent
+    data class Imported(
+        val duplicate: Boolean,
+        val ocrFailed: Boolean,
+        val optimizationFailed: Boolean = false,
+    ) : UiEvent
 
     data class Message(val key: String) : UiEvent
 }
@@ -325,12 +329,30 @@ constructor(
                             repository.addDocument(imported.document).also { committed = true }
                         }
                     val duplicate = saved.id != imported.document.id
-                    if (duplicate) documents.discardUncommitted(imported.document)
+                    if (
+                        duplicate &&
+                            saved.variants.none {
+                                it.relativePath.startsWith("${imported.document.id}/")
+                            }
+                    ) {
+                        val existingOriginal =
+                            saved.variants.first { it.kind == VariantKind.ORIGINAL }
+                        if (!documents.verify(existingOriginal)) {
+                            val source =
+                                imported.document.variants.first { it.kind == VariantKind.ORIGINAL }
+                            documents.file(source).inputStream().use {
+                                documents.saveDownloaded(existingOriginal, it)
+                            }
+                        }
+                        documents.discardUncommitted(imported.document)
+                    }
                     val accepted = imported.copy(document = saved)
                     if (saved.purchaseId == null || saved.purchaseId == editor.value.original?.id) {
                         if (intoEditor) applyImport(accepted) else pendingImport = accepted
                     }
-                    eventsChannel.send(UiEvent.Imported(duplicate, imported.ocrFailed))
+                    eventsChannel.send(
+                        UiEvent.Imported(duplicate, imported.ocrFailed, imported.optimizationFailed)
+                    )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (_: Exception) {

@@ -1,6 +1,6 @@
 # Inventario propuesto: original único en R2
 
-18/10/2026. **Preparado; pendiente de aprobación y ejecución en producción.** Complementa el inventario inicial; no modifica Supabase ni infraestructura de otros proyectos.
+18/10/2026. **Inventario aprobado y ejecutado.** Worker publicado y cuatro derivados eliminados tras la confirmación final explícita del propietario. Es el incremento histórico de original único; la petición posterior de imagen optimizada lo sustituye según ADR 0005. No modifica Supabase ni infraestructura de otros proyectos.
 
 ## Observación en lectura
 
@@ -23,3 +23,11 @@ No activar planes de pago, hacer público el bucket, reducir la calidad del orig
 Pruebas locales: Miniflare con D1/R2 aislados, dominio y suite Android; evidencia final en DELIVERY_STATUS.md. Empaquetar y revisar el Worker antes de publicarlo. Conservar la versión anterior para revertir código; no reponer referencias a derivados ya retirados. Los clientes antiguos admiten documentos con un único original. Si hay un fallo parcial de limpieza, las filas derivadas pendientes permiten reintentar sin tocar el original. Las exportaciones ZIP y archivos locales existentes se conservan.
 
 Paquete revisado: `.local/worker-bundle/worker.js`, SHA-256 `476166299b107fb1812f3e6c102658b8c7a148b6ef422153f207fbd590ba479b`. Dry-run sin publicación correcto. La limpieza administrativa seguirá el mismo orden: preservar/verificar originales, publicar metadatos canónicos con revisión/feed, retirar solo los cuatro derivados y después sus filas, y verificar de nuevo.
+
+## Ejecución
+
+El propietario aprobó expresamente publicar y limpiar esos cuatro derivados. Worker publicado el 18/10/2026, versión `6661aaff9e3a441ba825d80696f66e7d`, con el hash revisado y bindings/configuración idénticos; ambos secretos cifrados siguen presentes. `/health` responde 200 y `/v1/storage` sin sesión responde 401. D1 y código anterior exportados en la preservación privada local. Los tres originales tienen copia local con SHA-256 coincidente con D1/R2.
+
+Los dos documentos afectados están en revisión 3 con `ORIGINAL_ONLY`; el trigger publicó sus metadatos. El contador de cambios de D1 incluye la escritura del trigger, por lo que se confirmó la revisión/cuerpo mediante una lectura posterior en lugar de exigir exactamente un cambio reportado.
+
+El propietario confirmó «Confirmo, elimina esos cuatro derivados» en el diálogo final. R2 mostró «Se han eliminado 4 archivos correctamente». Se retiraron después únicamente las cuatro filas inventariadas. Verificación posterior: ORIGINAL 3 / 6.217.491 bytes; dos documentos en revisión 3, política ORIGINAL_ONLY; repetir el mantenimiento produce cero actualizaciones. Captura y pruebas privadas: `.local/r2-storage-after.png` y `.local/storage-maintenance-proof.json`. Las métricas agregadas de Cloudflare pueden tardar en actualizarse. La recuperación real entre instalaciones sigue pendiente. El siguiente incremento de imagen optimizada necesita su propio inventario y aprobación.

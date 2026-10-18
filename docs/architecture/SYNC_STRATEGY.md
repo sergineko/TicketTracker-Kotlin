@@ -4,9 +4,9 @@ La outbox se escribe junto a las compras/documentos en Room. El sincronizador en
 
 El ACK borra únicamente la operación confirmada. Una edición realizada durante la petición permanece en cola con la nueva revisión base. Una pérdida de conexión conserva operación y archivos; repetir la misma petición devuelve la misma aceptación. Cambiar el payload con la misma clave se rechaza.
 
-La subida valida propietario, MIME, tamaño y SHA-256 de cada variante. R2 recibe una clave opaca privada y checksum. Solo tras verificar todas las variantes se finaliza el documento como SYNCED_VERIFIED. No se borran originales locales. Descargar usa el Worker autenticado, no URL pública; se valida el hash antes del reemplazo atómico.
+La subida valida propietario, MIME, tamaño y SHA-256 de cada variante. R2 recibe una clave opaca privada y checksum. Cada nueva imagen solo reserva/sube OPTIMIZED; PDF solo ORIGINAL. Se conserva hash y tamaño de procedencia. Solo tras verificar la copia cloud se finaliza el documento como SYNCED_VERIFIED (ADR 0005). No se borran originales locales. Descargar usa el Worker autenticado, no URL pública; se valida el hash antes del reemplazo atómico.
 
-El feed contiene hasta 25 cambios por página y tombstones. Su cursor se confirma en la misma transacción Room que aplica la página. Se rechaza un propietario ajeno o versión desconocida sin avanzar cursor. Las compras/documentos remotos se consultan siempre desde Room. Los originales se recuperan bajo demanda; las miniaturas remotas todavía no se precargan.
+El feed contiene hasta 25 cambios por página y tombstones. Su cursor se confirma en la misma transacción Room que aplica la página. Se rechaza un propietario ajeno o versión desconocida sin avanzar cursor. Las compras/documentos remotos se consultan siempre desde Room. Las copias optimizadas de imágenes y los PDF íntegros se recuperan bajo demanda; las miniaturas se regeneran localmente. No se promete recuperar el original de cámara desde R2.
 
 Un 409 conserva la versión local y almacena la remota. En Perfil se puede mantener la compra local o aceptar la remota; un tombstone remoto no se resucita con la acción local. Los conflictos documentales requieren revisión y no eliminan archivos. La sesión caducada conserva el acceso offline y exige nuevo login para sincronizar.
 

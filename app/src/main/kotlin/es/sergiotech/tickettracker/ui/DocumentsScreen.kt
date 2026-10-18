@@ -67,7 +67,7 @@ fun DocumentsScreen(
                                 style = MaterialTheme.typography.bodySmall,
                             )
                         Text(
-                            "${document.variants.first { it.kind == VariantKind.ORIGINAL }.byteSize / 1024} KB",
+                            "${document.variants.first { it.kind != VariantKind.THUMBNAIL }.byteSize / 1024} KB",
                             style = MaterialTheme.typography.labelSmall,
                         )
                         Text(

@@ -305,6 +305,12 @@ private fun AccountStorageCard(
             state.storage?.let { usage ->
                 Text(
                     stringResource(
+                        R.string.storage_optimized,
+                        android.text.format.Formatter.formatFileSize(context, usage.optimizedBytes),
+                    )
+                )
+                Text(
+                    stringResource(
                         R.string.storage_originals,
                         usage.documents,
                         android.text.format.Formatter.formatFileSize(context, usage.originalBytes),
@@ -771,6 +777,8 @@ internal fun accountError(code: String) =
         "credential_clear_failed" -> R.string.google_clear_failed
         "identity_conflict" -> R.string.account_identity_conflict
         "quota_exceeded" -> R.string.cloud_quota
+        "image_optimization_failed",
+        "image_optimization_required" -> R.string.image_optimization_failed
         "rate_limited" -> R.string.auth_rate_limit
         "unsynced_changes" -> R.string.unsynced_signout
         "session_expired",

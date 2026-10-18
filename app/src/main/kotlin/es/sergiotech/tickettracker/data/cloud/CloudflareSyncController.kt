@@ -3,6 +3,8 @@ package es.sergiotech.tickettracker.data.cloud
 import androidx.room.withTransaction
 import es.sergiotech.tickettracker.core.database.*
 import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
+import es.sergiotech.tickettracker.data.cloudJson
+import es.sergiotech.tickettracker.data.model
 import es.sergiotech.tickettracker.domain.*
 import java.time.LocalDate
 import kotlinx.coroutines.*
@@ -53,6 +55,10 @@ class CloudflareSyncController(
                     currentCoroutineContext().ensureActive()
                     check(sessions.current()?.userId == account.userId)
                     if (dao.conflict(operation.entityId, account.userId) != null) continue
+                    if (operation.entityType == "DOCUMENT") {
+                        pushDocument(account, operation)
+                        continue
+                    }
                     try {
                         val response =
                             api.request(
@@ -67,70 +73,23 @@ class CloudflareSyncController(
                                     put("payload", JSONObject(operation.payload))
                                 },
                             )
-                        if (operation.entityType == "DOCUMENT") {
-                            val record =
-                                requireNotNull(
-                                    dao.documentRecord(operation.entityId, account.userId)
+                        db.withTransaction {
+                            val current =
+                                requireNotNull(dao.purchase(operation.entityId, account.userId))
+                            val remoteRevision = response.getLong("revision")
+                            dao.putPurchase(
+                                current.copy(
+                                    remoteRevision = maxOf(current.remoteRevision, remoteRevision)
                                 )
-                            // Persisted payloads are immutable idempotency requests. Honour legacy
-                            // queued uploads too, without uploading new local preview caches.
-                            val declared = JSONObject(operation.payload).getJSONArray("variants")
-                            val uploadIds =
-                                (0 until declared.length())
-                                    .map { declared.getJSONObject(it).getString("id") }
-                                    .toSet()
-                            for (variant in record.variants.filter { it.id in uploadIds }) api
-                                .upload(
-                                    objectPath(record.document.id, variant.id),
-                                    account.token,
-                                    variant.model(),
-                                    store,
-                                )
-                            val verified =
-                                api.request(
-                                    "/v1/documents/${operation.entityId}/finalize",
-                                    account.token,
-                                    "POST",
-                                )
-                            db.withTransaction {
-                                val current =
-                                    requireNotNull(dao.document(operation.entityId, account.userId))
-                                dao.putDocument(
-                                    current.copy(
-                                        state = DocumentState.SYNCED_VERIFIED.name,
-                                        remoteRevision = verified.getLong("revision"),
-                                    )
-                                )
-                                dao.acknowledge(
-                                    operation.entityId,
-                                    account.userId,
-                                    operation.operationId,
-                                )
-                            }
-                        } else {
-                            db.withTransaction {
-                                val current =
-                                    requireNotNull(dao.purchase(operation.entityId, account.userId))
-                                val remoteRevision = response.getLong("revision")
-                                dao.putPurchase(
-                                    current.copy(
-                                        remoteRevision =
-                                            maxOf(current.remoteRevision, remoteRevision)
-                                    )
-                                )
-                                dao.acknowledge(
-                                    operation.entityId,
-                                    account.userId,
-                                    operation.operationId,
-                                )
-                                // An edit made during the request stays queued and follows the
-                                // acknowledged version.
-                                dao.rebasePending(
-                                    operation.entityId,
-                                    account.userId,
-                                    remoteRevision,
-                                )
-                            }
+                            )
+                            dao.acknowledge(
+                                operation.entityId,
+                                account.userId,
+                                operation.operationId,
+                            )
+                            // An edit made during the request stays queued and follows the
+                            // acknowledged version.
+                            dao.rebasePending(operation.entityId, account.userId, remoteRevision)
                         }
                     } catch (failure: CloudApiException) {
                         if (failure.status != 409) throw failure
@@ -179,7 +138,7 @@ class CloudflareSyncController(
             } catch (failure: Exception) {
                 _status.value =
                     _status.value.copy(
-                        error = (failure as? CloudApiException)?.code ?: "sync_failed"
+                        error = (failure as? CloudOperationException)?.errorCode ?: "sync_failed"
                     )
                 throw failure
             } finally {
@@ -188,13 +147,25 @@ class CloudflareSyncController(
         }
 
     override suspend fun ensureDocument(document: ReceiptDocument) {
-        val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
-        if (store.verify(original)) return
+        if (store.availableVariant(document) != null) return
         val account = requireNotNull(sessions.current())
         require(
             document.ownerId == account.userId && document.state == DocumentState.SYNCED_VERIFIED
         )
-        api.download(objectPath(document.id, original.id), account.token, original, store)
+        val candidates =
+            document.variants
+                .filter { it.kind != VariantKind.THUMBNAIL }
+                .sortedBy { if (it.kind == VariantKind.OPTIMIZED) 0 else 1 }
+        for ((index, variant) in candidates.withIndex()) {
+            try {
+                api.download(objectPath(document.id, variant.id), account.token, variant, store)
+                return
+            } catch (failure: CloudApiException) {
+                if (failure.status !in listOf(404, 409) || index == candidates.lastIndex)
+                    throw failure
+            }
+        }
+        check(candidates.isNotEmpty())
     }
 
     override suspend fun storageUsage(): CloudStorageUsage {
@@ -211,6 +182,7 @@ class CloudflareSyncController(
             result.getLong("derivative_bytes"),
             result.getInt("documents"),
             (0 until ids.length()).map { ids.getString(it) },
+            result.optLong("optimized_bytes"),
         )
     }
 
@@ -224,9 +196,215 @@ class CloudflareSyncController(
             for (id in storageUsage(account).optimizableIds) {
                 currentCoroutineContext().ensureActive()
                 check(sessions.current()?.userId == account.userId)
-                api.request("/v1/documents/$id/optimize", account.token, "POST")
+                val remote = api.request("/v1/records/$id", account.token)
+                if (remote.getJSONObject("body").optString("storage_policy") == "OPTIMIZED_IMAGE") {
+                    // A previous finalization may have published the copy before cleanup
+                    // failed. Retry server cleanup without requiring the old source.
+                    api.request("/v1/documents/$id/optimize", account.token, "POST")
+                    applyDocument(
+                        account.userId,
+                        remote.getLong("revision"),
+                        remote.getJSONObject("body"),
+                    )
+                    continue
+                }
+                applyDocument(
+                    account.userId,
+                    remote.getLong("revision"),
+                    remote.getJSONObject("body"),
+                )
+                val record = requireNotNull(dao.documentRecord(id, account.userId))
+                if (
+                    record.variants.any {
+                        it.kind == "ORIGINAL" && it.mimeType.startsWith("image/")
+                    }
+                ) {
+                    val original = record.variants.first { it.kind == "ORIGINAL" }.model()
+                    if (!store.verify(original))
+                        api.download(objectPath(id, original.id), account.token, original, store)
+                    val operation =
+                        OutboxEntity(
+                            id,
+                            account.userId,
+                            newId(),
+                            "DOCUMENT",
+                            remote.getLong("revision"),
+                            remote.getJSONObject("body").toString(),
+                            System.currentTimeMillis(),
+                        )
+                    dao.enqueue(operation)
+                    pushDocument(account, operation)
+                } else api.request("/v1/documents/$id/optimize", account.token, "POST")
             }
         }
+
+    /** A legacy idempotency key is never reused with changed bytes. Raw images never upload. */
+    private suspend fun pushDocument(account: CloudSession, initial: OutboxEntity) {
+        var operation = initial
+        var payload = JSONObject(operation.payload)
+        val declared = payload.getJSONArray("variants")
+        val modernImage =
+            payload.optString("storage_policy") == "OPTIMIZED_IMAGE" &&
+                declared.length() == 1 &&
+                declared.getJSONObject(0).getString("kind") == "OPTIMIZED"
+        val pdf =
+            declared.length() == 1 &&
+                declared.getJSONObject(0).optString("mime_type") == "application/pdf"
+        if (!modernImage && !pdf) {
+            var remote =
+                try {
+                    api.request("/v1/records/${operation.entityId}", account.token)
+                } catch (failure: CloudApiException) {
+                    if (failure.status == 404) null else throw failure
+                }
+            if (remote?.getJSONObject("body")?.optString("storage_policy") == "OPTIMIZED_IMAGE") {
+                adoptDocument(account, operation, remote)
+                return
+            }
+            val record = requireNotNull(dao.documentRecord(operation.entityId, account.userId))
+            val originalPdf =
+                record.model().variants.firstOrNull {
+                    it.kind == VariantKind.ORIGINAL && it.mimeType == "application/pdf"
+                }
+            if (originalPdf != null && remote != null) {
+                val entries = remote.getJSONObject("body").getJSONArray("variants")
+                val cloudOriginal =
+                    (0 until entries.length())
+                        .map { entries.getJSONObject(it) }
+                        .first { it.getString("kind") == "ORIGINAL" }
+                require(cloudOriginal.getString("sha256") == originalPdf.sha256)
+                api.upload(
+                    objectPath(operation.entityId, cloudOriginal.getString("id")),
+                    account.token,
+                    originalPdf,
+                    store,
+                )
+                adoptDocument(account, operation, remote)
+                return
+            }
+            val optimized =
+                if (originalPdf != null) originalPdf
+                else
+                    try {
+                        store.optimizedImage(record.model())
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        throw CloudOperationException("image_optimization_failed")
+                    }
+            if (remote != null) {
+                // Clear obsolete derivatives only after the old cloud source is verified.
+                api.request("/v1/documents/${operation.entityId}/optimize", account.token, "POST")
+                remote = api.request("/v1/records/${operation.entityId}", account.token)
+            }
+            val variant =
+                VariantEntity(
+                    optimized.id,
+                    operation.entityId,
+                    optimized.kind.name,
+                    optimized.relativePath,
+                    optimized.mimeType,
+                    optimized.byteSize,
+                    optimized.sha256,
+                )
+            payload =
+                record
+                    .model()
+                    .copy(
+                        variants =
+                            record.model().variants.filter { it.kind != VariantKind.OPTIMIZED } +
+                                optimized
+                    )
+                    .cloudJson()
+            operation =
+                operation.copy(
+                    operationId = newId(),
+                    expectedRemoteRevision = remote?.getLong("revision") ?: 0,
+                    payload = payload.toString(),
+                )
+            db.withTransaction {
+                check(sessions.current()?.userId == account.userId)
+                check(
+                    dao.pending(operation.entityId, account.userId)?.operationId ==
+                        initial.operationId
+                )
+                dao.putVariants(listOf(variant))
+                dao.enqueue(operation)
+            }
+        }
+        try {
+            api.request(
+                "/v1/sync/mutate",
+                account.token,
+                "POST",
+                JSONObject().apply {
+                    put("operation_id", operation.operationId)
+                    put("id", operation.entityId)
+                    put("expected_revision", operation.expectedRemoteRevision)
+                    put("type", "DOCUMENT")
+                    put("payload", payload)
+                },
+            )
+        } catch (failure: CloudApiException) {
+            if (failure.status != 409) throw failure
+            val remote = api.request("/v1/records/${operation.entityId}", account.token)
+            if (remote.getJSONObject("body").optString("storage_policy") != "OPTIMIZED_IMAGE")
+                throw failure
+            adoptDocument(account, operation, remote)
+            return
+        }
+        val record = requireNotNull(dao.documentRecord(operation.entityId, account.userId))
+        val cloudVariants = payload.getJSONArray("variants")
+        require(cloudVariants.length() == 1)
+        val cloudId = cloudVariants.getJSONObject(0).getString("id")
+        val variant = record.variants.first { it.id == cloudId }.model()
+        require(variant.kind == VariantKind.OPTIMIZED || variant.mimeType == "application/pdf")
+        check(sessions.current()?.userId == account.userId)
+        api.upload(objectPath(operation.entityId, cloudId), account.token, variant, store)
+        val verified =
+            api.request("/v1/documents/${operation.entityId}/finalize", account.token, "POST")
+        db.withTransaction {
+            check(sessions.current()?.userId == account.userId)
+            val current = requireNotNull(dao.document(operation.entityId, account.userId))
+            dao.putDocument(
+                current.copy(
+                    state = DocumentState.SYNCED_VERIFIED.name,
+                    remoteRevision = verified.getLong("revision"),
+                )
+            )
+            dao.acknowledge(operation.entityId, account.userId, operation.operationId)
+        }
+    }
+
+    private suspend fun adoptDocument(
+        account: CloudSession,
+        operation: OutboxEntity,
+        remote: JSONObject,
+    ) {
+        val body = remote.getJSONObject("body")
+        val local = requireNotNull(dao.document(operation.entityId, account.userId))
+        val sourceHash =
+            body.optString("source_original_sha256").ifEmpty {
+                val entries = body.getJSONArray("variants")
+                (0 until entries.length())
+                    .map { entries.getJSONObject(it) }
+                    .first { it.getString("kind") == "ORIGINAL" }
+                    .getString("sha256")
+            }
+        require(sourceHash == local.originalSha256)
+        // Finalization also verifies the actual optimized bytes, including retries.
+        val verified =
+            api.request("/v1/documents/${operation.entityId}/finalize", account.token, "POST")
+        db.withTransaction {
+            check(sessions.current()?.userId == account.userId)
+            applyDocument(
+                account.userId,
+                verified.getLong("revision"),
+                body.put("state", "SYNCED_VERIFIED"),
+            )
+            dao.acknowledge(operation.entityId, account.userId, operation.operationId)
+        }
+    }
 
     override suspend fun resolveConflict(id: String, keepLocal: Boolean) =
         lock.withLock {
@@ -358,6 +536,7 @@ class CloudflareSyncController(
     }
 
     private suspend fun applyDocument(owner: String, remoteRevision: Long, body: JSONObject) {
+        require(body.getInt("schema_version") == 1 && body.getString("owner_id") == owner)
         val id = body.getString("id")
         val old = dao.documentRecord(id, owner)
         val variants = body.getJSONArray("variants")
@@ -377,7 +556,11 @@ class CloudflareSyncController(
                     value.getString("sha256"),
                 )
             }
-        val original = entries.first { it.kind == VariantKind.ORIGINAL.name }
+        val originalHash =
+            body.optString("source_original_sha256").ifEmpty {
+                entries.first { it.kind == VariantKind.ORIGINAL.name }.sha256
+            }
+        require(originalHash.matches(Regex("[a-f0-9]{64}")))
         val state = DocumentState.valueOf(body.getString("state"))
         dao.putDocument(
             DocumentEntity(
@@ -385,7 +568,7 @@ class CloudflareSyncController(
                 owner,
                 old?.document?.purchaseId,
                 body.getString("display_name"),
-                original.sha256,
+                originalHash,
                 body.optString("extracted_text"),
                 state.name,
                 body.getLong("created_at"),

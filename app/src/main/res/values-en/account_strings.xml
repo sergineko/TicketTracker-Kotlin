@@ -13,7 +13,7 @@
     <string name="access_options">Sign-in options</string>
     <string name="access_options_body">Use email or Google with the same address. Sign out before switching accounts. Google access only requests basic identity and email.</string>
     <string name="cloud_scope_title">Purchases and receipts in your account</string>
-    <string name="cloud_scope_body">Sync purchase details and original documents. Review pending changes before switching phones.</string>
+    <string name="cloud_scope_body">Sync purchases, optimized images and intact PDFs. Original images stay on this phone. Review pending changes before switching devices.</string>
     <string name="device_scope_title">Only on this phone</string>
     <string name="device_scope_body">%1$d subscription and insurance records. They do not sync yet; they are included in your ZIP export.</string>
     <string name="cloud_purchase_stat">Purchases in your inventory</string>

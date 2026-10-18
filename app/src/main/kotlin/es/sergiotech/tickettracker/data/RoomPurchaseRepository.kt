@@ -149,7 +149,30 @@ class RoomPurchaseRepository(
         val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
         return db.withTransaction {
             val duplicate = dao.duplicate(owner, original.sha256)
-            if (duplicate != null) return@withTransaction duplicate.model()
+            if (duplicate != null) {
+                // A restored cloud image may have no local source yet. Keep the newly
+                // supplied original under its existing private path, attached to that ID.
+                if (duplicate.variants.none { it.kind == VariantKind.ORIGINAL.name }) {
+                    dao.putVariants(
+                        listOf(
+                            VariantEntity(
+                                original.id,
+                                duplicate.document.id,
+                                original.kind.name,
+                                original.relativePath,
+                                original.mimeType,
+                                original.byteSize,
+                                original.sha256,
+                            )
+                        )
+                    )
+                    return@withTransaction requireNotNull(
+                            dao.documentRecord(duplicate.document.id, owner)
+                        )
+                        .model()
+                }
+                return@withTransaction duplicate.model()
+            }
             val saved = document.copy(ownerId = owner)
             dao.putDocument(
                 DocumentEntity(
@@ -227,7 +250,7 @@ private fun PurchaseRecord.model() =
                 },
     )
 
-private fun DocumentRecord.model() =
+internal fun DocumentRecord.model() =
     ReceiptDocument(
         document.id,
         document.ownerId,
@@ -246,4 +269,5 @@ private fun DocumentRecord.model() =
         document.extractedText,
         DocumentState.valueOf(document.state),
         document.createdAt,
+        document.originalSha256,
     )

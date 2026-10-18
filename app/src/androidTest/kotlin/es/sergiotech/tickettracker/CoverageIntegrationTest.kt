@@ -126,7 +126,7 @@ class CoverageIntegrationTest {
                 JSONObject(
                     zip.getInputStream(zip.getEntry("manifest.json")).bufferedReader().readText()
                 )
-            assertEquals(2, manifest.getInt("version"))
+            assertEquals(3, manifest.getInt("version"))
             val contracts = manifest.getJSONArray("contracts")
             assertEquals(1, contracts.length())
             assertEquals(1299, contracts.getJSONObject(0).getLong("amount_minor"))

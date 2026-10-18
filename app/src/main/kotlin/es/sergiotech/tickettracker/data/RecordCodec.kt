@@ -47,10 +47,23 @@ internal fun Purchase.json(): JSONObject =
         )
     }
 
-internal fun ReceiptDocument.cloudJson(): JSONObject =
-    copy(variants = variants.filter { it.kind == VariantKind.ORIGINAL }).json().apply {
-        put("storage_policy", "ORIGINAL_ONLY")
+internal fun ReceiptDocument.cloudJson(): JSONObject {
+    val original = variants.firstOrNull { it.kind == VariantKind.ORIGINAL }
+    val image =
+        if (original != null) original.mimeType.startsWith("image/")
+        else variants.any { it.kind == VariantKind.OPTIMIZED }
+    val cloud = if (image) variants.firstOrNull { it.kind == VariantKind.OPTIMIZED } else original
+    return copy(variants = listOfNotNull(cloud)).json().apply {
+        put(
+            "storage_policy",
+            if (image && cloud != null) "OPTIMIZED_IMAGE"
+            else if (image) "OPTIMIZATION_REQUIRED" else "ORIGINAL_ONLY",
+        )
+        put("source_original_sha256", sourceOriginalSha256)
+        put("source_original_byte_size", original?.byteSize ?: cloud?.byteSize ?: JSONObject.NULL)
+        put("optimization_profile", if (image) "receipt-webp-v1" else JSONObject.NULL)
     }
+}
 
 internal fun ReceiptDocument.json(): JSONObject =
     JSONObject().apply {
@@ -63,6 +76,8 @@ internal fun ReceiptDocument.json(): JSONObject =
         put("created_at", createdAt)
         put("extracted_text", extractedText)
         put("retention_policy", "KEEP_ORIGINAL")
+        put("source_original_sha256", sourceOriginalSha256)
+        put("original_included", variants.any { it.kind == VariantKind.ORIGINAL })
         put(
             "variants",
             JSONArray().apply {

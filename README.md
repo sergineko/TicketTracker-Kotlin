@@ -2,18 +2,18 @@
 
 Aplicación Android nativa de Sergiotech para organizar compras, justificantes, garantías y devoluciones. Kotlin, Compose, Material 3. Paquete `es.sergiotech.tickettracker`, Android 10/API 29 o superior; objetivo API 36.
 
-## Incremento 0.1.2
+## Incremento 0.1.3
 
 - Alta, edición, borrado lógico y búsqueda de compras con artículos y fechas independientes.
 - Room observable, importes enteros, revisiones y outbox transaccional.
 - CameraX, SAF, compartir PDF/imagen desde otras apps y OCR local ML Kit.
-- Original único íntegro en nuevas subidas, miniaturas locales, SHA-256, duplicados por propietario y límite de 25 MiB. Limpieza de derivados antiguos preparada; requiere el despliegue aprobado.
+- R2 recibe una sola imagen optimizada de hasta 2 MiB; conserva el original en el móvil. Miniaturas locales, PDF íntegro (hasta 25 MiB), SHA-256, duplicados por procedencia y ZIP v3. Despliegue y conversión de los dos JPEG aprobados ya verificados; [inventario y evidencia](docs/integrations/OPTIMIZED_IMAGES_DEPLOYMENT.md).
 - OCR propone artículos/cantidades/precios y fechas impresas por producto, sin sobrescribir campos ni calcular plazos legales.
 - Pantalla de cuenta con identidad, estado y alcance de sincronización, opciones de acceso secundarias e icono integrado en oscuro.
 - Temas, español/inglés, recordatorios opt-in y exportación ZIP con manifiesto.
 - Inicio compacto según la imagen del propietario: tarjetas turquesa/violeta/naranja, cápsulas, filas y navegación con «+» central; [referencia visual](docs/design/BRAND.md).
 - Garantías activas, críticas (30 días) y devoluciones con fecha manual vigente, con filtros pulsables. Suscripciones/seguros manuales guardados solo en el móvil e incluidos en el ZIP; sincronización y avisos de estos registros pendientes.
-- Adaptadores Cloudflare: sesiones cifradas Keystore, códigos de correo, Google, sincronización incremental, conflictos y descarga íntegra bajo demanda.
+- Adaptadores Cloudflare: sesiones cifradas Keystore, códigos de correo, Google, sincronización incremental, conflictos y descarga de copias verificadas bajo demanda.
 - Worker con D1/R2 privados, autorización por propietario, cuotas e idempotencia; pruebas locales sin credenciales.
 
 **El MVP cloud no está terminado.** El Worker está publicado con D1 `tickettracker` y R2 `tickettracker-documents` privados en jurisdicción UE. Correo y operaciones D1/R2 tienen una prueba HTTPS real con un documento sintético; la APK incluye la URL y audiencia Google públicas del piloto. El propietario ha confirmado una sesión Google en Android; la recuperación entre instalaciones sigue pendiente de validación completa. Desinstalar borra los datos del dispositivo: conserva una exportación hasta validar la recuperación.

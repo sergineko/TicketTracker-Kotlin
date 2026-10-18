@@ -13,7 +13,7 @@
     <string name="access_options">Opciones de acceso</string>
     <string name="access_options_body">Puedes entrar con tu correo o con Google usando la misma dirección. Cambiar de cuenta requiere cerrar esta sesión primero. El acceso con Google solo solicita identidad básica y correo.</string>
     <string name="cloud_scope_title">Compras y tickets en tu cuenta</string>
-    <string name="cloud_scope_body">Sincroniza los datos de tus compras y los documentos originales. Revisa los cambios pendientes antes de cambiar de móvil.</string>
+    <string name="cloud_scope_body">Sincroniza compras, imágenes optimizadas y PDF íntegros. Los originales de las imágenes se conservan en este móvil. Revisa los cambios pendientes antes de cambiar de dispositivo.</string>
     <string name="device_scope_title">Solo en este móvil</string>
     <string name="device_scope_body">%1$d registros de suscripciones y seguros. Todavía no se sincronizan; se incluyen en tu exportación ZIP.</string>
     <string name="cloud_purchase_stat">Compras en tu inventario</string>

@@ -10,6 +10,7 @@ import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
 import es.sergiotech.tickettracker.data.LocalPreferences
 import es.sergiotech.tickettracker.data.RoomCoverageRepository
 import es.sergiotech.tickettracker.data.RoomPurchaseRepository
+import es.sergiotech.tickettracker.data.VaultExporter
 import es.sergiotech.tickettracker.data.cloud.*
 import es.sergiotech.tickettracker.domain.*
 import java.io.File
@@ -77,19 +78,23 @@ class CloudSyncIntegrationTest {
     }
 
     @Test
-    fun onlyOriginalIsQueuedAndUploadedWhileLocalPreviewAndLegacyRequestsRemainIntact() = runTest {
+    fun onlyOptimizedIsUploadedAndLegacyRequestsAreRebasedWithoutUploadingOriginals() = runTest {
         sessions.activate(session)
         val id = newId()
         val variants =
             listOf(VariantKind.ORIGINAL, VariantKind.THUMBNAIL, VariantKind.OPTIMIZED).map { kind ->
                 val target =
-                    File(context.filesDir, "vault/$id/${kind.name}").apply {
-                        parentFile!!.mkdirs()
-                        writeText("fixture-$kind")
-                    }
+                    File(
+                            context.filesDir,
+                            "vault/$id/${if (kind == VariantKind.OPTIMIZED) "cloud-v1.webp" else kind.name}",
+                        )
+                        .apply {
+                            parentFile!!.mkdirs()
+                            writeText("fixture-$kind")
+                        }
                 DocumentVariant(
                     kind = kind,
-                    relativePath = "$id/${kind.name}",
+                    relativePath = "$id/${target.name}",
                     mimeType = "image/png",
                     byteSize = target.length(),
                     sha256 = PrivateDocumentStore.sha256(target),
@@ -104,25 +109,31 @@ class CloudSyncIntegrationTest {
             when {
                 path == "/v1/sync/mutate" -> JSONObject().put("revision", 1)
                 path.endsWith("/finalize") -> JSONObject().put("revision", 2)
+                path.startsWith("/v1/records/") -> throw CloudApiException(404, "not_found")
                 else -> emptyChanges()
             }
         }
         sync.synchronize()
-        assertEquals(listOf(VariantKind.ORIGINAL), api.uploads.map { it.kind })
+        assertEquals(listOf(VariantKind.OPTIMIZED), api.uploads.map { it.kind })
         assertEquals(3, repository.observeDocuments().first().single().variants.size)
         assertTrue(variants.all { store.verify(it) })
-        // A request persisted by the previous APK must keep its exact idempotency payload.
+        // A legacy request is replaced with a new operation ID after checking remote state.
         val payload =
             JSONObject(pending.payload)
                 .put(
                     "variants",
-                    JSONArray().apply { variants.forEach { put(JSONObject().put("id", it.id)) } },
+                    JSONArray().apply {
+                        variants.forEach {
+                            put(JSONObject().put("id", it.id).put("kind", it.kind.name))
+                        }
+                    },
                 )
+                .put("storage_policy", "ORIGINAL_ONLY")
                 .toString()
         db.tickets().enqueue(pending.copy(operationId = newId(), payload = payload))
         api.uploads.clear()
         sync.synchronize()
-        assertEquals(3, api.uploads.size)
+        assertEquals(listOf(VariantKind.OPTIMIZED), api.uploads.map { it.kind })
         assertEquals(0, repository.observePendingCount().first())
     }
 
@@ -335,6 +346,187 @@ class CloudSyncIntegrationTest {
             fail("Expected integrity failure")
         } catch (_: IllegalStateException) {}
         assertTrue(store.verify(document.variants.single()))
+    }
+
+    @Test
+    fun restoredOptimizedImageOpensAndExportsWithoutClaimingAnOriginal() = runTest {
+        sessions.activate(session)
+        val bytes = "optimized-image-fixture".toByteArray()
+        val hash =
+            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") {
+                "%02x".format(it)
+            }
+        val sourceBytes = "source image before optimization".toByteArray()
+        val sourceHash =
+            MessageDigest.getInstance("SHA-256").digest(sourceBytes).joinToString("") {
+                "%02x".format(it)
+            }
+        val id = newId()
+        val body =
+            JSONObject()
+                .put("schema_version", 1)
+                .put("id", id)
+                .put("owner_id", owner)
+                .put("display_name", "Restored receipt")
+                .put("state", "SYNCED_VERIFIED")
+                .put("created_at", 1)
+                .put("source_original_sha256", sourceHash)
+                .put("storage_policy", "OPTIMIZED_IMAGE")
+                .put(
+                    "variants",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("id", newId())
+                                .put("kind", "OPTIMIZED")
+                                .put("mime_type", "image/webp")
+                                .put("byte_size", bytes.size)
+                                .put("sha256", hash)
+                        ),
+                )
+        api.requestBlock = { _, _, _, _ ->
+            JSONObject()
+                .put(
+                    "changes",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("kind", "DOCUMENT")
+                                .put("revision", 5)
+                                .put("body", body)
+                        ),
+                )
+                .put("cursor", 5)
+                .put("has_more", false)
+        }
+        api.downloadBytes = bytes
+        sync.synchronize()
+        val document = repository.observeDocuments().first().single()
+        assertEquals(sourceHash, document.sourceOriginalSha256)
+        assertFalse(document.variants.any { it.kind == VariantKind.ORIGINAL })
+        sync.ensureDocument(document)
+        assertTrue(store.verify(requireNotNull(store.availableVariant(document))))
+        val archive = File(context.filesDir, "optimized-export.zip")
+        VaultExporter(context, repository, store, RoomCoverageRepository(db, sessions), sessions)
+            .export(android.net.Uri.fromFile(archive))
+        java.util.zip.ZipFile(archive).use { zip ->
+            val manifest =
+                JSONObject(
+                    zip.getInputStream(zip.getEntry("manifest.json")).bufferedReader().readText()
+                )
+            assertEquals(1, manifest.getInt("originals_missing"))
+            assertFalse(
+                manifest.getJSONArray("documents").getJSONObject(0).getBoolean("original_included")
+            )
+            assertArrayEquals(
+                bytes,
+                zip.getInputStream(
+                        zip.getEntry("documents/${document.variants.single().relativePath}")
+                    )
+                    .readBytes(),
+            )
+        }
+        val source =
+            DocumentVariant(
+                kind = VariantKind.ORIGINAL,
+                relativePath = "${newId()}/original",
+                mimeType = "image/jpeg",
+                byteSize = sourceBytes.size.toLong(),
+                sha256 = sourceHash,
+            )
+        store.saveDownloaded(source, sourceBytes.inputStream())
+        val merged =
+            repository.addDocument(
+                ReceiptDocument(displayName = "Reimported source", variants = listOf(source))
+            )
+        assertEquals(document.id, merged.id)
+        assertTrue(merged.variants.any { it.id == source.id })
+        assertTrue(store.verify(source))
+        assertEquals(1, repository.observeDocuments().first().size)
+    }
+
+    @Test
+    fun interruptedCloudCleanupRetriesWithoutDownloadingOrUploadingTheSource() = runTest {
+        sessions.activate(session)
+        val id = newId()
+        val body =
+            JSONObject()
+                .put("schema_version", 1)
+                .put("id", id)
+                .put("owner_id", owner)
+                .put("display_name", "Verified copy")
+                .put("state", "SYNCED_VERIFIED")
+                .put("created_at", 1)
+                .put("storage_policy", "OPTIMIZED_IMAGE")
+                .put("source_original_sha256", "a".repeat(64))
+                .put(
+                    "variants",
+                    JSONArray()
+                        .put(
+                            JSONObject()
+                                .put("id", newId())
+                                .put("kind", "OPTIMIZED")
+                                .put("mime_type", "image/webp")
+                                .put("byte_size", 100)
+                                .put("sha256", "b".repeat(64))
+                        ),
+                )
+        var cleanup = 0
+        api.requestBlock = { path, _, _, _ ->
+            when {
+                path == "/v1/storage" ->
+                    JSONObject()
+                        .put("original_bytes", 1000)
+                        .put("derivative_bytes", 0)
+                        .put("documents", 1)
+                        .put("optimized_bytes", 100)
+                        .put("optimizable_ids", JSONArray().put(id))
+                path.endsWith("/optimize") -> {
+                    cleanup++
+                    JSONObject()
+                }
+                path.startsWith("/v1/records/") -> JSONObject().put("revision", 4).put("body", body)
+                else -> error("Unexpected request")
+            }
+        }
+        sync.optimizeStorage()
+        assertEquals(1, cleanup)
+        assertTrue(api.uploads.isEmpty())
+        assertEquals(0, repository.observePendingCount().first())
+        assertEquals(
+            VariantKind.OPTIMIZED,
+            repository.observeDocuments().first().single().variants.single().kind,
+        )
+    }
+
+    @Test
+    fun unoptimizableImageNeverFallsBackToUploadingTheRawOriginal() = runTest {
+        sessions.activate(session)
+        val id = newId()
+        val original =
+            DocumentVariant(
+                kind = VariantKind.ORIGINAL,
+                relativePath = "$id/original",
+                mimeType = "image/jpeg",
+                byteSize = 8,
+                sha256 = "a".repeat(64),
+            )
+        repository.addDocument(
+            ReceiptDocument(
+                id = id,
+                displayName = "Unavailable original",
+                variants = listOf(original),
+            )
+        )
+        api.requestBlock = { _, _, _, _ -> throw CloudApiException(404, "not_found") }
+        try {
+            sync.synchronize()
+            fail("Raw upload must be blocked")
+        } catch (failure: CloudOperationException) {
+            assertEquals("image_optimization_failed", failure.errorCode)
+        }
+        assertTrue(api.uploads.isEmpty())
+        assertEquals(1, repository.observePendingCount().first())
     }
 
     @Test

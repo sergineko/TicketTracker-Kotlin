@@ -3,6 +3,8 @@ package es.sergiotech.tickettracker.core.documents
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Matrix
 import android.graphics.pdf.PdfRenderer
 import android.net.Uri
@@ -28,6 +30,7 @@ data class ImportResult(
     val document: ReceiptDocument,
     val extraction: ReceiptExtraction,
     val ocrFailed: Boolean,
+    val optimizationFailed: Boolean = false,
 )
 
 class DocumentImportException(val reason: Reason) : IOException(reason.name) {
@@ -39,7 +42,10 @@ class DocumentImportException(val reason: Reason) : IOException(reason.name) {
     }
 }
 
-class PrivateDocumentStore(private val context: Context) : DocumentStore {
+class PrivateDocumentStore(
+    private val context: Context,
+    private val optimizationMeasurement: ((Long, Double, Int, Double) -> Unit)? = null,
+) : DocumentStore {
     private val root = File(context.filesDir, "vault").apply { mkdirs() }
 
     fun file(variant: DocumentVariant): File {
@@ -54,13 +60,46 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
             target.isFile && target.length() == variant.byteSize && sha256(target) == variant.sha256
         }
 
+    suspend fun availableVariant(document: ReceiptDocument): DocumentVariant? =
+        withContext(Dispatchers.IO) {
+            for (variant in
+                document.variants.sortedBy { if (it.kind == VariantKind.ORIGINAL) 0 else 1 }) {
+                if (variant.kind != VariantKind.THUMBNAIL && verify(variant))
+                    return@withContext variant
+            }
+            null
+        }
+
+    /** Original remains untouched. Re-encoded cloud copies strip EXIF/location metadata. */
+    suspend fun optimizedImage(document: ReceiptDocument): DocumentVariant =
+        withContext(Dispatchers.IO) {
+            document.variants
+                .firstOrNull {
+                    it.kind == VariantKind.OPTIMIZED &&
+                        (it.relativePath.endsWith("cloud-v1.webp") ||
+                            it.sha256 == document.sourceOriginalSha256)
+                }
+                ?.let { if (verify(it)) return@withContext it }
+            val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
+            check(original.mimeType.startsWith("image/") && verify(original))
+            val source = file(original)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(source.path, bounds)
+            val bitmap = decodeImage(source, bounds)
+            try {
+                compressImage(document.id, original, bitmap, document.extractedText)
+            } finally {
+                bitmap.recycle()
+            }
+        }
+
     /** Regenerable, private device cache. It is never part of cloud metadata or the outbox. */
     suspend fun preview(document: ReceiptDocument): File? =
         withContext(Dispatchers.IO) {
             document.variants
                 .firstOrNull { it.kind == VariantKind.THUMBNAIL }
                 ?.let { if (verify(it)) return@withContext file(it) }
-            val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
+            val original = availableVariant(document) ?: return@withContext null
             val cache =
                 File(
                     File(context.cacheDir, "document-previews").apply { mkdirs() },
@@ -184,6 +223,7 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
                 val variants = mutableListOf(variant(id, original, VariantKind.ORIGINAL, mime!!))
                 val bitmap = if (pdf) pdfPreview(original) else decodeImage(original, bounds)
                 var ocrFailed = false
+                var optimizationFailed = false
                 val text: String
                 try {
                     text =
@@ -217,8 +257,15 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
                         if (thumb !== bitmap) thumb.recycle()
                     }
 
-                    // Keep one untouched original and a small device-only preview. No second
-                    // full-size JPEG: it was unused and consumed both local and remote space.
+                    if (!pdf) {
+                        try {
+                            variants += compressImage(id, variants.first(), bitmap, text)
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: Exception) {
+                            optimizationFailed = true
+                        }
+                    }
                 } finally {
                     bitmap.recycle()
                 }
@@ -231,6 +278,7 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
                     ),
                     ReceiptExtractor().extract(text),
                     ocrFailed,
+                    optimizationFailed,
                 )
             } catch (failure: Throwable) {
                 directory.deleteRecursively()
@@ -286,7 +334,10 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
             throw DocumentImportException(DocumentImportException.Reason.CORRUPT)
         }
         var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 2600) sample *= 2
+        while (
+            bounds.outWidth.toLong() * bounds.outHeight / sample / sample > 12_000_000 ||
+                maxOf(bounds.outWidth, bounds.outHeight) / sample > 12000
+        ) sample *= 2
         val bitmap =
             BitmapFactory.decodeFile(
                 file.path,
@@ -329,6 +380,143 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
         )
     }
 
+    private suspend fun compressImage(
+        id: String,
+        original: DocumentVariant,
+        source: Bitmap,
+        sourceText: String,
+    ): DocumentVariant {
+        val target = File(file(original).parentFile, "cloud-v1.webp")
+        val format =
+            if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY
+            else Bitmap.CompressFormat.WEBP
+        val tokens =
+            sourceText
+                .uppercase(java.util.Locale.ROOT)
+                .split(Regex("[^\\p{L}\\p{N}.,/-]+"))
+                .filter { it.length >= 2 }
+                .toSet()
+        val numbers = tokens.filter { it.any(Char::isDigit) }.toSet()
+        val expected = ReceiptExtractor().extract(sourceText)
+        for ((edge, quality) in
+            listOf(2400 to 84, 12000 to 78, 12000 to 84, 3600 to 90, 12000 to 94)) {
+            currentCoroutineContext().ensureActive()
+            val ratio =
+                minOf(
+                    1f,
+                    maxOf(
+                        edge.toFloat() / maxOf(source.width, source.height),
+                        1000f / minOf(source.width, source.height),
+                    ),
+                )
+            val width = maxOf(1, (source.width * ratio).toInt())
+            val height = maxOf(1, (source.height * ratio).toInt())
+            val candidate = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            try {
+                candidate.eraseColor(Color.WHITE)
+                Canvas(candidate)
+                    .drawBitmap(
+                        source,
+                        null,
+                        android.graphics.Rect(0, 0, width, height),
+                        android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG),
+                    )
+                target.outputStream().use { check(candidate.compress(format, quality, it)) }
+            } finally {
+                candidate.recycle()
+            }
+            // A small input can already be more efficient (e.g. monochrome PNG). Reuse its
+            // exact bytes instead of enlarging or recompressing it again.
+            if (
+                target.length() >= original.byteSize && original.byteSize <= MAX_CLOUD_IMAGE_BYTES
+            ) {
+                target.delete()
+                return original.copy(id = newId(), kind = VariantKind.OPTIMIZED)
+            }
+            if (target.length() !in 1..MAX_CLOUD_IMAGE_BYTES || target.length() > original.byteSize)
+                continue
+            val decoded = BitmapFactory.decodeFile(target.path) ?: continue
+            val psnr = imagePsnr(source, decoded)
+            val readBack =
+                try {
+                    val recognizer =
+                        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+                    try {
+                        recognizer.process(InputImage.fromBitmap(decoded, 0)).await().text
+                    } finally {
+                        recognizer.close()
+                    }
+                } finally {
+                    decoded.recycle()
+                }
+            // OCR can split the same price/date/code at different spaces or punctuation.
+            val recovered =
+                readBack.uppercase(java.util.Locale.ROOT).replace(Regex("[^\\p{L}\\p{N}]"), "")
+            fun retained(token: String) =
+                token.replace(Regex("[^\\p{L}\\p{N}]"), "").let {
+                    it.isNotEmpty() && it in recovered
+                }
+            val recall =
+                if (tokens.isEmpty()) 1.0 else tokens.count(::retained).toDouble() / tokens.size
+            optimizationMeasurement?.invoke(
+                target.length(),
+                recall,
+                numbers.count { !retained(it) },
+                psnr,
+            )
+            val actual = ReceiptExtractor().extract(readBack)
+            val criticalFieldsRetained =
+                (expected.total == null || expected.total?.value == actual.total?.value) &&
+                    (expected.date == null || expected.date?.value == actual.date?.value) &&
+                    expected.deadlines.all { before ->
+                        actual.deadlines.any { it.kind == before.kind && it.date == before.date }
+                    } &&
+                    expected.items
+                        .mapNotNull { it.unitPrice }
+                        .all { price -> actual.items.any { it.unitPrice == price } }
+            val numericRecall =
+                if (numbers.isEmpty()) 1.0 else numbers.count(::retained).toDouble() / numbers.size
+            // With very high visual fidelity, OCR noise must not force raw-photo uploads.
+            // Critical extracted values still have to survive; no legal date is inferred.
+            if (
+                psnr >= 36.0 &&
+                    (psnr >= 39.0 || (recall >= .90 && numericRecall >= .90)) &&
+                    criticalFieldsRetained
+            )
+                return variant(id, target, VariantKind.OPTIMIZED, "image/webp")
+        }
+        target.delete()
+        throw java.io.IOException("image_optimization_failed")
+    }
+
+    /** Luminance PSNR at a common 1600px view, independent of OCR layout differences. */
+    private fun imagePsnr(source: Bitmap, candidate: Bitmap): Double {
+        val reference = scaled(source, 1600)
+        val result = Bitmap.createScaledBitmap(candidate, reference.width, reference.height, true)
+        try {
+            val before = IntArray(reference.width)
+            val after = IntArray(reference.width)
+            var squaredError = 0.0
+            for (y in 0 until reference.height) {
+                reference.getPixels(before, 0, reference.width, 0, y, reference.width, 1)
+                result.getPixels(after, 0, result.width, 0, y, result.width, 1)
+                for (x in before.indices) {
+                    fun luma(pixel: Int) =
+                        (.299 * Color.red(pixel) +
+                            .587 * Color.green(pixel) +
+                            .114 * Color.blue(pixel))
+                    val delta = luma(before[x]) - luma(after[x])
+                    squaredError += delta * delta
+                }
+            }
+            val mse = squaredError / (reference.width.toLong() * reference.height)
+            return if (mse == 0.0) 100.0 else 10 * kotlin.math.log10(255.0 * 255.0 / mse)
+        } finally {
+            if (result !== candidate && result !== source && result !== reference) result.recycle()
+            if (reference !== source) reference.recycle()
+        }
+    }
+
     private fun variant(id: String, file: File, kind: VariantKind, mime: String) =
         DocumentVariant(
             kind = kind,
@@ -340,6 +528,7 @@ class PrivateDocumentStore(private val context: Context) : DocumentStore {
 
     companion object {
         const val MAX_BYTES = 25L * 1024 * 1024
+        const val MAX_CLOUD_IMAGE_BYTES = 2L * 1024 * 1024
 
         fun sha256(file: File): String {
             val digest = MessageDigest.getInstance("SHA-256")

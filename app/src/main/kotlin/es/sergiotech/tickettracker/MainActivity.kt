@@ -13,7 +13,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
 import es.sergiotech.tickettracker.domain.ReceiptDocument
 import es.sergiotech.tickettracker.domain.SyncController
-import es.sergiotech.tickettracker.domain.VariantKind
 import es.sergiotech.tickettracker.ui.AccountViewModel
 import es.sergiotech.tickettracker.ui.TicketTrackerApp
 import es.sergiotech.tickettracker.ui.TrackerViewModel
@@ -55,8 +54,7 @@ class MainActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 sync.ensureDocument(document)
-                val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
-                check(store.verify(original))
+                val original = requireNotNull(store.availableVariant(document))
                 val uri =
                     FileProvider.getUriForFile(
                         this@MainActivity,

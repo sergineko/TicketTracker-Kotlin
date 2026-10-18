@@ -34,6 +34,7 @@ data class CloudStorageUsage(
     val derivativeBytes: Long,
     val documents: Int,
     val optimizableIds: List<String>,
+    val optimizedBytes: Long = 0,
 )
 
 open class CloudOperationException(val errorCode: String) : Exception(errorCode)

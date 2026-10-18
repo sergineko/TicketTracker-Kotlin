@@ -32,6 +32,18 @@ class VaultExporter(
             val owner = identity.identity.first().id
             val purchases = repository.observePurchases().first()
             val documents = repository.observeDocuments().first()
+            val availableDocuments =
+                documents.map { document ->
+                    val available = document.variants.filter { store.verify(it) }
+                    check(
+                        available.any {
+                            it.kind != es.sergiotech.tickettracker.domain.VariantKind.THUMBNAIL
+                        }
+                    ) {
+                        "Document must be downloaded before export"
+                    }
+                    document.copy(variants = available)
+                }
             val protection = coverage.observe().first()
             check(
                 purchases.all { it.ownerId == owner } &&
@@ -41,10 +53,21 @@ class VaultExporter(
             val manifest =
                 JSONObject().apply {
                     put("format", "tickettracker-export")
-                    put("version", 2)
+                    put("version", 3)
                     put("exported_at", java.time.Instant.now())
                     put("purchases", JSONArray().apply { purchases.forEach { put(it.json()) } })
-                    put("documents", JSONArray().apply { documents.forEach { put(it.json()) } })
+                    put(
+                        "documents",
+                        JSONArray().apply { availableDocuments.forEach { put(it.json()) } },
+                    )
+                    put(
+                        "originals_missing",
+                        availableDocuments.count {
+                            it.variants.none { v ->
+                                v.kind == es.sergiotech.tickettracker.domain.VariantKind.ORIGINAL
+                            }
+                        },
+                    )
                     put(
                         "contracts",
                         JSONArray().apply {
@@ -73,8 +96,9 @@ class VaultExporter(
                     zip.putNextEntry(ZipEntry("manifest.json"))
                     zip.write(manifest.toString(2).toByteArray())
                     zip.closeEntry()
-                    documents
+                    availableDocuments
                         .flatMap { it.variants }
+                        .distinctBy { it.relativePath }
                         .forEach { variant ->
                             currentCoroutineContext().ensureActive()
                             check(store.verify(variant)) { "Document integrity check failed" }

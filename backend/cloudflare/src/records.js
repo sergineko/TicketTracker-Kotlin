@@ -1,4 +1,5 @@
 import { HttpError, requireValue, readJson, readBytes, json, sha256, uuid } from './http.js';
+import { cleanupInactive } from './storage.js';
 
 const mimeTypes = new Set([
   'application/pdf',
@@ -130,7 +131,32 @@ function documentPayload(input, ownerId, id, revision) {
       sha256: variant.sha256,
     };
   });
-  requireValue(kinds.has('ORIGINAL'));
+  const original = variants.find((variant) => variant.kind === 'ORIGINAL');
+  const optimized =
+    original?.mime_type === 'application/pdf'
+      ? null
+      : variants.find((variant) => variant.kind === 'OPTIMIZED');
+  requireValue(
+    optimized || original?.mime_type === 'application/pdf',
+    'image_optimization_required',
+    422
+  );
+  const sourceHash = input.source_original_sha256 || original?.sha256;
+  const sourceBytes = input.source_original_byte_size || original?.byte_size;
+  requireValue(
+    /^[a-f0-9]{64}$/.test(sourceHash) &&
+      Number.isSafeInteger(sourceBytes) &&
+      sourceBytes > 0 &&
+      sourceBytes <= 26214400
+  );
+  if (optimized)
+    requireValue(
+      optimized.mime_type.startsWith('image/') &&
+        optimized.byte_size <= 2097152 &&
+        optimized.byte_size <= sourceBytes,
+      'image_optimization_required',
+      422
+    );
   return {
     schema_version: 1,
     id,
@@ -139,10 +165,13 @@ function documentPayload(input, ownerId, id, revision) {
     display_name: input.display_name,
     extracted_text: input.extracted_text || '',
     created_at: Date.now(),
-    retention_policy: 'KEEP_ORIGINAL',
-    storage_policy: 'ORIGINAL_ONLY',
+    retention_policy: optimized ? 'KEEP_LOCAL_ORIGINAL' : 'KEEP_ORIGINAL',
+    storage_policy: optimized ? 'OPTIMIZED_IMAGE' : 'ORIGINAL_ONLY',
+    source_original_sha256: sourceHash,
+    source_original_byte_size: sourceBytes,
+    optimization_profile: optimized ? 'receipt-webp-v1' : null,
     state: 'REMOTE_OBJECT_PENDING_COMMIT',
-    variants: variants.filter((variant) => variant.kind === 'ORIGINAL'),
+    variants: [optimized || original],
     revision,
   };
 }
@@ -178,11 +207,55 @@ export async function mutate(request, env, owner) {
   const deleted = input.type === 'PURCHASE_TOMBSTONE';
   const kind = input.type === 'DOCUMENT' ? 'DOCUMENT' : 'PURCHASE';
   const revision = input.expected_revision + 1;
-  const body =
+  let body =
     kind === 'PURCHASE'
       ? purchasePayload(input.payload, owner.id, input.id, deleted, revision)
       : documentPayload(input.payload, owner.id, input.id, revision);
-  if (kind === 'DOCUMENT') requireValue(input.expected_revision === 0, 'document_immutable', 409);
+  let reservations = kind === 'DOCUMENT' ? body.variants : [];
+  if (kind === 'DOCUMENT' && input.expected_revision > 0) {
+    requireValue(body.storage_policy === 'OPTIMIZED_IMAGE', 'document_immutable', 409);
+    const old = await env.DB.prepare(
+      "SELECT body FROM tt_records WHERE id=? AND owner_id=? AND kind='DOCUMENT'"
+    )
+      .bind(input.id, owner.id)
+      .first();
+    requireValue(old, 'not_found', 404);
+    const previousBody = JSON.parse(old.body);
+    requireValue(previousBody.storage_policy !== 'OPTIMIZED_IMAGE', 'document_immutable', 409);
+    const source = previousBody.variants.find((v) => v.kind === 'ORIGINAL');
+    requireValue(
+      source?.sha256 === body.source_original_sha256 &&
+        source.byte_size === body.source_original_byte_size,
+      'integrity_mismatch',
+      422
+    );
+    const existing = await env.DB.prepare(
+      "SELECT * FROM tt_variants WHERE document_id=? AND owner_id=? AND kind='OPTIMIZED'"
+    )
+      .bind(input.id, owner.id)
+      .first();
+    if (existing) {
+      requireValue(
+        existing.id === body.variants[0].id &&
+          existing.sha256 === body.variants[0].sha256 &&
+          existing.byte_size === body.variants[0].byte_size,
+        'cleanup_required',
+        409
+      );
+      reservations = [];
+    }
+    body = {
+      ...previousBody,
+      ...body,
+      created_at: previousBody.created_at,
+      display_name: previousBody.display_name,
+      extracted_text: previousBody.extracted_text,
+      variants: [source, body.variants[0]],
+      storage_policy: 'IMAGE_OPTIMIZATION_PENDING',
+      state: previousBody.state,
+      revision,
+    };
+  }
   const encoded = JSON.stringify(body);
   const now = Date.now();
   const maxRecords = Number(env.MAX_USER_RECORDS || 2000);
@@ -223,7 +296,7 @@ export async function mutate(request, env, owner) {
     );
   }
   if (kind === 'DOCUMENT') {
-    const bytes = body.variants.reduce((sum, variant) => sum + variant.byte_size, 0);
+    const bytes = reservations.reduce((sum, variant) => sum + variant.byte_size, 0);
     statements.push(
       env.DB.prepare(
         'INSERT INTO tt_write_guard(ok) SELECT CASE WHEN coalesce((SELECT sum(byte_size) FROM tt_variants WHERE owner_id=?),0)+?<=? THEN 1 ELSE 0 END'
@@ -234,7 +307,7 @@ export async function mutate(request, env, owner) {
         'INSERT INTO tt_write_guard(ok) SELECT CASE WHEN coalesce((SELECT sum(byte_size) FROM tt_variants),0)+?<=? THEN 1 ELSE 0 END'
       ).bind(bytes, Number(env.MAX_TOTAL_BYTES || 1073741824))
     );
-    for (const variant of body.variants) {
+    for (const variant of reservations) {
       statements.push(
         env.DB.prepare(
           'INSERT INTO tt_variants(id,owner_id,document_id,kind,storage_key,mime_type,byte_size,sha256) VALUES(?,?,?,?,?,?,?,?)'
@@ -267,18 +340,16 @@ export async function mutate(request, env, owner) {
     )
       .bind(input.id, owner.id)
       .first();
-    if (!current) {
+    if (!current || (kind === 'DOCUMENT' && current.revision === input.expected_revision)) {
       const counts = await env.DB.prepare(
         'SELECT (SELECT count(*) FROM tt_records WHERE owner_id=?) AS records,(SELECT coalesce(sum(byte_size),0) FROM tt_variants WHERE owner_id=?) AS user_bytes,(SELECT coalesce(sum(byte_size),0) FROM tt_variants) AS total_bytes'
       )
         .bind(owner.id, owner.id)
         .first();
       const bytes =
-        kind === 'DOCUMENT'
-          ? body.variants.reduce((sum, variant) => sum + variant.byte_size, 0)
-          : 0;
+        kind === 'DOCUMENT' ? reservations.reduce((sum, variant) => sum + variant.byte_size, 0) : 0;
       if (
-        counts.records >= maxRecords ||
+        (!current && counts.records >= maxRecords) ||
         (kind === 'DOCUMENT' &&
           (counts.user_bytes + bytes > Number(env.MAX_USER_BYTES || 104857600) ||
             counts.total_bytes + bytes > Number(env.MAX_TOTAL_BYTES || 1073741824)))
@@ -321,11 +392,24 @@ export async function documentObject(request, env, owner, documentId, variantId)
     )
       .bind(documentId, owner.id)
       .first();
-    if (record && JSON.parse(record.body).storage_policy === 'ORIGINAL_ONLY')
+    if (
+      record &&
+      ['ORIGINAL_ONLY', 'OPTIMIZED_IMAGE'].includes(JSON.parse(record.body).storage_policy)
+    )
       return json({ skipped: true, reason: 'local_derivative' });
   }
   requireValue(variant, 'not_found', 404);
   if (request.method === 'PUT') {
+    const before = await env.DB.prepare('SELECT body FROM tt_records WHERE id=? AND owner_id=?')
+      .bind(documentId, owner.id)
+      .first();
+    const beforeBody = before && JSON.parse(before.body);
+    if (
+      beforeBody &&
+      ['ORIGINAL_ONLY', 'OPTIMIZED_IMAGE'].includes(beforeBody.storage_policy) &&
+      !beforeBody.variants.some((v) => v.id === variantId)
+    )
+      return json({ skipped: true, reason: 'local_derivative' });
     const bytes = await readBytes(request, Number(env.MAX_DOCUMENT_BYTES || 26214400));
     requireValue(
       bytes.length === variant.byte_size && (await sha256(bytes)) === variant.sha256,
@@ -342,17 +426,20 @@ export async function documentObject(request, env, owner, documentId, variantId)
       httpMetadata: { contentType: variant.mime_type, cacheControl: 'private, no-store' },
       customMetadata: { sha256: variant.sha256 },
     });
-    if (variant.kind !== 'ORIGINAL') {
+    {
       const record = await env.DB.prepare('SELECT body FROM tt_records WHERE id=? AND owner_id=?')
         .bind(documentId, owner.id)
         .first();
-      if (record && JSON.parse(record.body).storage_policy === 'ORIGINAL_ONLY') {
+      const currentBody = record && JSON.parse(record.body);
+      if (
+        currentBody &&
+        ['ORIGINAL_ONLY', 'OPTIMIZED_IMAGE'].includes(currentBody.storage_policy) &&
+        !currentBody.variants.some((v) => v.id === variantId)
+      ) {
         // A legacy upload may have started just before optimization. Re-check after
         // its put so it cannot recreate an orphan derivative behind the cleanup.
         await env.DOCUMENTS.delete(variant.storage_key);
-        await env.DB.prepare(
-          "DELETE FROM tt_variants WHERE id=? AND owner_id=? AND kind<>'ORIGINAL'"
-        )
+        await env.DB.prepare('DELETE FROM tt_variants WHERE id=? AND owner_id=?')
           .bind(variantId, owner.id)
           .run();
         return json({ skipped: true, reason: 'local_derivative' });
@@ -366,14 +453,17 @@ export async function documentObject(request, env, owner, documentId, variantId)
   if (request.method === 'GET') {
     requireValue(variant.verified_at, 'document_not_uploaded', 409);
     const object = await env.DOCUMENTS.get(variant.storage_key);
-    requireValue(
-      object &&
-        object.size === variant.byte_size &&
-        object.customMetadata?.sha256 === variant.sha256,
-      'object_unavailable',
-      503
-    );
-    return new Response(object.body, {
+    requireValue(object && object.size === variant.byte_size, 'object_unavailable', 503);
+    let bytes;
+    if (object.customMetadata?.sha256) {
+      requireValue(object.customMetadata.sha256 === variant.sha256, 'object_unavailable', 503);
+      bytes = object.body;
+    } else {
+      // Administrative imports can lack custom metadata. Verify actual bytes instead.
+      bytes = new Uint8Array(await object.arrayBuffer());
+      requireValue((await sha256(bytes)) === variant.sha256, 'object_unavailable', 503);
+    }
+    return new Response(bytes, {
       headers: {
         'Content-Type': variant.mime_type,
         'Content-Length': String(variant.byte_size),
@@ -389,6 +479,58 @@ export async function documentObject(request, env, owner, documentId, variantId)
 
 export async function finalizeDocument(env, owner, id) {
   requireValue(uuid(id));
+  const row = await env.DB.prepare(
+    "SELECT revision,body FROM tt_records WHERE id=? AND owner_id=? AND kind='DOCUMENT'"
+  )
+    .bind(id, owner.id)
+    .first();
+  requireValue(row, 'not_found', 404);
+  const body = JSON.parse(row.body);
+  const optimized = body.variants.find((v) => v.kind === 'OPTIMIZED');
+  if (
+    optimized &&
+    ['OPTIMIZED_IMAGE', 'IMAGE_OPTIMIZATION_PENDING'].includes(body.storage_policy)
+  ) {
+    const variant = await env.DB.prepare(
+      'SELECT * FROM tt_variants WHERE id=? AND document_id=? AND owner_id=?'
+    )
+      .bind(optimized.id, id, owner.id)
+      .first();
+    requireValue(variant?.verified_at, 'upload_incomplete', 409);
+    const object = await env.DOCUMENTS.get(variant.storage_key);
+    requireValue(
+      object &&
+        object.size === optimized.byte_size &&
+        (await sha256(new Uint8Array(await object.arrayBuffer()))) === optimized.sha256,
+      'integrity_mismatch',
+      422
+    );
+    if (
+      body.storage_policy !== 'OPTIMIZED_IMAGE' ||
+      body.state !== 'SYNCED_VERIFIED' ||
+      body.variants.length !== 1
+    ) {
+      const next = {
+        ...body,
+        variants: [optimized],
+        state: 'SYNCED_VERIFIED',
+        storage_policy: 'OPTIMIZED_IMAGE',
+        retention_policy: 'KEEP_LOCAL_ORIGINAL',
+        revision: row.revision + 1,
+      };
+      const update = await env.DB.prepare(
+        'UPDATE tt_records SET body=?,revision=revision+1,updated_at=? WHERE id=? AND owner_id=? AND revision=?'
+      )
+        .bind(JSON.stringify(next), Date.now(), id, owner.id, row.revision)
+        .run();
+      requireValue(update.meta.changes, 'revision_conflict', 409);
+    }
+    await cleanupInactive(env, owner, id, optimized);
+    const final = await env.DB.prepare('SELECT revision FROM tt_records WHERE id=? AND owner_id=?')
+      .bind(id, owner.id)
+      .first();
+    return json({ state: 'SYNCED_VERIFIED', revision: final.revision });
+  }
   const variants = await env.DB.prepare(
     'SELECT id,verified_at FROM tt_variants WHERE document_id=? AND owner_id=?'
   )

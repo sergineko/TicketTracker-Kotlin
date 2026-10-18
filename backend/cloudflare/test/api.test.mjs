@@ -306,7 +306,7 @@ test('documents require matching bytes and hashes, stay private, and finalize on
   ).json();
   assert.equal(replay.revision, 2);
 });
-test('legacy clients send three variants but new documents reserve and store only the original', async () => {
+test('legacy clients send three variants but only the optimized image is reserved and stored', async () => {
   const bytes = new TextEncoder().encode('original image fixture');
   const variants = ['ORIGINAL', 'THUMBNAIL', 'OPTIMIZED'].map((kind) => ({
     id: randomUUID(),
@@ -329,10 +329,10 @@ test('legacy clients send three variants but new documents reserve and store onl
     200
   );
   const remote = await (await api(`/v1/records/${body.id}`, { token: alice.token })).json();
-  assert.equal(remote.body.storage_policy, 'ORIGINAL_ONLY');
+  assert.equal(remote.body.storage_policy, 'OPTIMIZED_IMAGE');
   assert.deepEqual(
     remote.body.variants.map((row) => row.kind),
-    ['ORIGINAL']
+    ['OPTIMIZED']
   );
   for (const variant of variants) {
     const path = `/v1/documents/${body.id}/variants/${variant.id}`;
@@ -347,7 +347,7 @@ test('legacy clients send three variants but new documents reserve and store onl
       type: 'image/png',
     });
     assert.equal(uploaded.status, 200);
-    if (variant.kind !== 'ORIGINAL') assert.equal((await uploaded.json()).skipped, true);
+    if (variant.kind !== 'OPTIMIZED') assert.equal((await uploaded.json()).skipped, true);
   }
   assert.equal(
     (await api(`/v1/documents/${body.id}/finalize`, { token: alice.token, method: 'POST' })).status,
@@ -367,6 +367,32 @@ test('legacy clients send three variants but new documents reserve and store onl
     (await api(`/v1/documents/${body.id}/optimize`, { token: bob.token, method: 'POST' })).status,
     404
   );
+});
+
+test('a legacy PDF preview never replaces the intact multipage source', async () => {
+  const original = {
+    id: randomUUID(),
+    kind: 'ORIGINAL',
+    mime_type: 'application/pdf',
+    byte_size: 1200,
+    sha256: 'a'.repeat(64),
+  };
+  const preview = {
+    id: randomUUID(),
+    kind: 'OPTIMIZED',
+    mime_type: 'image/jpeg',
+    byte_size: 500,
+    sha256: 'b'.repeat(64),
+  };
+  const body = mutation('DOCUMENT', {
+    display_name: 'PDF with legacy preview',
+    variants: [original, preview],
+  });
+  const response = await api('/v1/sync/mutate', { token: alice.token, method: 'POST', body });
+  assert.equal(response.status, 200, await response.clone().text());
+  const remote = await (await api(`/v1/records/${body.id}`, { token: alice.token })).json();
+  assert.deepEqual(remote.body.variants, [original]);
+  assert.equal(remote.body.storage_policy, 'ORIGINAL_ONLY');
 });
 
 test('document references cannot point to another account', async () => {
@@ -402,10 +428,10 @@ function reservedDocument() {
   return mutation('DOCUMENT', {
     display_name: 'Quota fixture',
     extracted_text: '',
-    variants: ['ORIGINAL', 'THUMBNAIL', 'OPTIMIZED'].map((kind) => ({
+    variants: ['ORIGINAL'].map((kind) => ({
       id: randomUUID(),
       kind,
-      mime_type: 'image/png',
+      mime_type: 'application/pdf',
       byte_size: 26214400,
       sha256: 'a'.repeat(64),
     })),

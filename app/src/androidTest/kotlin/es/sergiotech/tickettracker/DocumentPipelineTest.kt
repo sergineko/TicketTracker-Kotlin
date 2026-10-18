@@ -69,7 +69,14 @@ class DocumentPipelineTest {
                 assertEquals(PrivateDocumentStore.sha256(input), original.sha256)
                 assertTrue(store.verify(original))
                 assertTrue(result.document.variants.any { it.kind == VariantKind.THUMBNAIL })
-                assertFalse(result.document.variants.any { it.kind == VariantKind.OPTIMIZED })
+                assertFalse(result.optimizationFailed)
+                val optimized = result.document.variants.single { it.kind == VariantKind.OPTIMIZED }
+                assertTrue(store.verify(optimized))
+                assertTrue(optimized.byteSize <= original.byteSize)
+                assertTrue(optimized.byteSize <= PrivateDocumentStore.MAX_CLOUD_IMAGE_BYTES)
+                assertNotNull(
+                    store.availableVariant(result.document.copy(variants = listOf(optimized)))
+                )
                 val restored = result.document.copy(variants = listOf(original))
                 val preview = store.preview(restored)
                 assertNotNull(preview)

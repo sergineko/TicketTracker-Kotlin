@@ -114,6 +114,7 @@ fun TicketTrackerApp(
                     snackbar.showSnackbar(
                         resources.getString(
                             if (event.duplicate) R.string.duplicate_notice
+                            else if (event.optimizationFailed) R.string.image_optimization_failed
                             else if (event.ocrFailed) R.string.ocr_failed
                             else R.string.import_success
                         )

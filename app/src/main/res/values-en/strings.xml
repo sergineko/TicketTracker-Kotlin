@@ -76,7 +76,7 @@
     <string name="extracted_notice">We found these details. Review them before saving; recognition can make mistakes. Add items manually.</string>
     <string name="saving">Saving…</string>
     <string name="processing">Preparing your document</string>
-    <string name="processing_body">Validating, reading text and creating a thumbnail on this device. PDFs retain the original; recognition covers the first page.</string>
+    <string name="processing_body">Reading text and preparing a small, readable copy. The original stays on this phone. PDF recognition covers only the first page.</string>
     <string name="import_error">Import failed. Use a valid image or a password-free PDF up to 25 MB and check available storage.</string>
     <string name="duplicate_notice">This receipt was already saved. The file was not duplicated.</string>
     <string name="ocr_failed">Document saved. Text recognition failed; you can enter the purchase manually.</string>
@@ -102,7 +102,7 @@
     <string name="return_deadline">Return · %1$s</string>
     <string name="warranty_deadline">Warranty · %1$s</string>
     <string name="confirmed_date">Date entered by you</string>
-    <string name="open_original">Open original</string>
+    <string name="open_original">Open document</string>
     <string name="open_error">Could not open this document. Check its integrity and that a compatible viewer is installed.</string>
     <string name="local_document">Original retained · Local only</string>
     <string name="unlinked_document">Not linked to a purchase</string>
@@ -153,7 +153,7 @@
     <string name="notification_body">Review your items’ warranty and return dates in TicketTracker.</string>
     <string name="notification_channel">Warranties and returns</string>
     <string name="export">Export my data</string>
-    <string name="export_body">ZIP with purchases, original documents and integrity hashes. Contains unencrypted private information: keep it somewhere safe.</string>
+    <string name="export_body">ZIP with purchases, subscriptions, insurance and available files with integrity hashes. Includes local originals; the manifest identifies documents with only an optimized copy. Contains unencrypted private information: keep it somewhere safe.</string>
     <string name="export_success">Export completed</string>
     <string name="export_error">Export did not finish. The file may be incomplete; delete it and export again.</string>
     <string name="settings_error">Could not save this preference</string>

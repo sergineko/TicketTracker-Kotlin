@@ -1,8 +1,10 @@
 <resources>
     <string name="storage_title">Espacio en la nube</string>
-    <string name="storage_policy_body">Las nuevas subidas guardan un solo original íntegro. Las miniaturas se generan en el móvil.</string>
-    <string name="storage_originals">%1$d documentos · originales: %2$s</string>
-    <string name="storage_derivatives">Copias derivadas antiguas: %1$s</string>
+    <string name="storage_policy_body">Una copia optimizada por imagen, con un máximo de 2 MB. El original se conserva en el móvil. Los PDF se guardan íntegros; las miniaturas solo en el dispositivo.</string>
+    <string name="storage_originals">%1$d documentos · PDF y originales antiguos: %2$s</string>
+    <string name="storage_derivatives">Miniaturas antiguas: %1$s</string>
+    <string name="storage_optimized">Imágenes optimizadas: %1$s</string>
+    <string name="image_optimization_failed">El original sigue en este móvil. No se ha podido crear una copia pequeña con calidad suficiente; la imagen no se subirá hasta resolverlo.</string>
     <string name="storage_usage_scope">Bytes registrados para esta cuenta, incluidas reservas de subidas. No representa la factura total de Cloudflare.</string>
     <string name="storage_refresh">Consultar espacio</string>
     <string name="storage_optimize">Optimizar copias antiguas</string>

@@ -4,7 +4,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { Miniflare } from 'miniflare';
 import { applySchema } from './helpers.mjs';
 import { optimizeDocument, storageSummary } from '../src/storage.js';
-import { documentObject } from '../src/records.js';
+import { documentObject, mutate, finalizeDocument } from '../src/records.js';
 
 let mf, db, bucket, env;
 const owner = { id: randomUUID() };
@@ -184,5 +184,210 @@ test('a legacy upload racing cleanup cannot recreate an orphan derivative', asyn
   const response = await documentObject(request, racing, owner, id, derivative.id);
   assert.equal((await response.json()).skipped, true);
   assert.equal(await bucket.get(derivative.storage_key), null);
+  assert.ok(await bucket.get(variants[0].storage_key));
+});
+
+async function replacement() {
+  const { id, variants } = await legacy();
+  await optimizeDocument(env, owner, id);
+  const bytes = new TextEncoder().encode('small readable image');
+  const optimized = {
+    id: randomUUID(),
+    kind: 'OPTIMIZED',
+    mime_type: 'image/webp',
+    byte_size: bytes.length,
+    sha256: createHash('sha256').update(bytes).digest('hex'),
+  };
+  const payload = {
+    display_name: 'Converted receipt',
+    extracted_text: '',
+    source_original_sha256: variants[0].sha256,
+    source_original_byte_size: variants[0].byte_size,
+    variants: [optimized],
+  };
+  const request = () =>
+    new Request('https://fixture.test/v1/sync/mutate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        operation_id: operation,
+        id,
+        expected_revision: 3,
+        type: 'DOCUMENT',
+        payload,
+      }),
+    });
+  const operation = randomUUID();
+  await mutate(request(), env, owner);
+  const row = await db.prepare('SELECT * FROM tt_variants WHERE id=?').bind(optimized.id).first();
+  return { id, variants, bytes, optimized, row, request };
+}
+
+test('image conversion keeps the source until verified, publishes only optimized bytes and retries safely', async () => {
+  const { id, variants, bytes, optimized, row, request } = await replacement();
+  assert.ok(await bucket.get(variants[0].storage_key));
+  await assert.rejects(finalizeDocument(env, owner, id), { code: 'upload_incomplete' });
+  await documentObject(
+    new Request('https://fixture.test/object', {
+      method: 'PUT',
+      headers: { 'content-type': 'image/webp' },
+      body: bytes,
+    }),
+    env,
+    owner,
+    id,
+    optimized.id
+  );
+  await bucket.put(row.storage_key, new Uint8Array(bytes.length));
+  await assert.rejects(finalizeDocument(env, owner, id), { code: 'integrity_mismatch' });
+  assert.ok(await bucket.get(variants[0].storage_key));
+  await bucket.put(row.storage_key, bytes);
+  await finalizeDocument(env, owner, id);
+  assert.equal(await bucket.get(variants[0].storage_key), null);
+  assert.deepEqual(new Uint8Array(await (await bucket.get(row.storage_key)).arrayBuffer()), bytes);
+  const record = await db
+    .prepare('SELECT body,revision FROM tt_records WHERE id=?')
+    .bind(id)
+    .first();
+  const body = JSON.parse(record.body);
+  assert.equal(body.storage_policy, 'OPTIMIZED_IMAGE');
+  assert.deepEqual(body.variants, [optimized]);
+  assert.equal(body.source_original_sha256, variants[0].sha256);
+  assert.equal(record.revision, 5);
+  const downloaded = await documentObject(
+    new Request('https://fixture.test/object'),
+    env,
+    owner,
+    id,
+    optimized.id
+  );
+  assert.deepEqual(new Uint8Array(await downloaded.arrayBuffer()), bytes);
+  await mutate(request(), env, owner);
+  await finalizeDocument(env, owner, id);
+  assert.equal(
+    (await db.prepare('SELECT revision FROM tt_records WHERE id=?').bind(id).first()).revision,
+    5
+  );
+  assert.equal(
+    JSON.parse(
+      (
+        await db
+          .prepare('SELECT body FROM tt_changes WHERE entity_id=? ORDER BY cursor DESC LIMIT 1')
+          .bind(id)
+          .first()
+      ).body
+    ).storage_policy,
+    'OPTIMIZED_IMAGE'
+  );
+});
+
+test('a failed source deletion can be retried from canonical optimized metadata', async () => {
+  const { id, variants, bytes, optimized } = await replacement();
+  await documentObject(
+    new Request('https://fixture.test/object', {
+      method: 'PUT',
+      headers: { 'content-type': 'image/webp' },
+      body: bytes,
+    }),
+    env,
+    owner,
+    id,
+    optimized.id
+  );
+  const interrupted = {
+    DB: db,
+    DOCUMENTS: {
+      get: (...args) => bucket.get(...args),
+      delete: async () => {
+        throw Error('offline');
+      },
+    },
+  };
+  await assert.rejects(finalizeDocument(interrupted, owner, id));
+  assert.ok(await bucket.get(variants[0].storage_key));
+  await optimizeDocument(env, owner, id);
+  assert.equal(await bucket.get(variants[0].storage_key), null);
+});
+
+test('raw images, oversized copies and forged source identities are rejected before reservation', async () => {
+  const { id, variants } = await legacy();
+  const post = (payload, revision = 0) =>
+    mutate(
+      new Request('https://fixture.test/mutate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          operation_id: randomUUID(),
+          id: revision ? id : randomUUID(),
+          expected_revision: revision,
+          type: 'DOCUMENT',
+          payload: { display_name: 'Receipt', ...payload },
+        }),
+      }),
+      env,
+      owner
+    );
+  await assert.rejects(post({ variants: [variants[0]] }), { code: 'image_optimization_required' });
+  await assert.rejects(
+    post({
+      source_original_sha256: variants[0].sha256,
+      source_original_byte_size: 5000000,
+      variants: [{ ...variants[1], byte_size: 2097153 }],
+    }),
+    { code: 'image_optimization_required' }
+  );
+  await assert.rejects(
+    post(
+      {
+        source_original_sha256: 'a'.repeat(64),
+        source_original_byte_size: variants[0].byte_size,
+        variants: [{ ...variants[1], byte_size: 1 }],
+      },
+      2
+    ),
+    { code: 'integrity_mismatch' }
+  );
+  assert.ok(await bucket.get(variants[0].storage_key));
+});
+
+test('conversion respects temporary quota and leaves the source metadata untouched', async () => {
+  const { id, variants } = await legacy();
+  await optimizeDocument(env, owner, id);
+  const used = await db
+    .prepare('SELECT sum(byte_size) AS n FROM tt_variants WHERE owner_id=?')
+    .bind(owner.id)
+    .first();
+  const payload = {
+    display_name: 'Quota conversion',
+    source_original_sha256: variants[0].sha256,
+    source_original_byte_size: variants[0].byte_size,
+    variants: [
+      {
+        id: randomUUID(),
+        kind: 'OPTIMIZED',
+        mime_type: 'image/webp',
+        byte_size: 1,
+        sha256: 'a'.repeat(64),
+      },
+    ],
+  };
+  const request = new Request('https://fixture.test/mutate', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      operation_id: randomUUID(),
+      id,
+      expected_revision: 3,
+      type: 'DOCUMENT',
+      payload,
+    }),
+  });
+  await assert.rejects(mutate(request, { ...env, MAX_USER_BYTES: String(used.n) }, owner), {
+    code: 'quota_exceeded',
+  });
+  assert.equal(
+    (await db.prepare('SELECT revision FROM tt_records WHERE id=?').bind(id).first()).revision,
+    3
+  );
   assert.ok(await bucket.get(variants[0].storage_key));
 });

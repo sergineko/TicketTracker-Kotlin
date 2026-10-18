@@ -1,8 +1,10 @@
 <resources>
     <string name="storage_title">Cloud storage</string>
-    <string name="storage_policy_body">New uploads keep a single intact original. Thumbnails are generated on your phone.</string>
-    <string name="storage_originals">%1$d documents · originals: %2$s</string>
-    <string name="storage_derivatives">Old derivative copies: %1$s</string>
+    <string name="storage_policy_body">One optimized copy per image, up to 2 MB. The original stays on your phone. PDFs remain intact; thumbnails stay on the device.</string>
+    <string name="storage_originals">%1$d documents · PDFs and older originals: %2$s</string>
+    <string name="storage_derivatives">Older thumbnails: %1$s</string>
+    <string name="storage_optimized">Optimized images: %1$s</string>
+    <string name="image_optimization_failed">The original is still on this phone. A small copy with sufficient quality could not be created; this image will not upload until this is resolved.</string>
     <string name="storage_usage_scope">Registered bytes for this account, including upload reservations. This is not your total Cloudflare bill.</string>
     <string name="storage_refresh">Check storage</string>
     <string name="storage_optimize">Optimize old copies</string>
