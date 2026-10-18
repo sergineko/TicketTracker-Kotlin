@@ -12,11 +12,11 @@
 | Session / Challenge | HMAC de token o código, expiración y consumo; no se guarda el secreto en claro en D1 |
 | TrackedContract (solo Room) | UUID, propietario, tipo suscripción/seguro, nombre/proveedor, importe entero/moneda, periodo, próxima fecha civil, activo, revisión y tombstone |
 
-Room v4 tiene migraciones 1→2→3→4 no destructivas y esquemas JSON exportados. La versión 4 añade contratos locales por propietario sin modificar compras o documentos. Se valida abriendo bases creadas con los esquemas v1/v2/v3 mediante la implementación real de Room v4. El ZIP v2 añade contratos locales al manifiesto. No hay restaurador ZIP integrado.
+Room v4 tiene migraciones 1→2→3→4 no destructivas y esquemas JSON exportados. La versión 4 añade contratos locales por propietario sin modificar compras o documentos. Se valida abriendo bases creadas con los esquemas v1/v2/v3 mediante la implementación real de Room v4. ZIP v3 mantiene contratos y exporta archivos disponibles, indicando originales ausentes. No hay restaurador ZIP integrado. ADR 0005 conserva el hash de procedencia en originalSha256 aunque un documento recuperado solo tenga OPTIMIZED; no exige una nueva migración.
 
 D1 usa una base exclusiva y once tablas `tt_`. `tt_records` conserva agregados de compra/documento con sus revisiones, `tt_changes` el feed ordenado por commits serializados de SQLite, `tt_mutations` la idempotencia y `tt_variants` el propietario, clave R2 opaca e integridad. Las líneas y productos siguen siendo entidades distintas dentro del agregado. El cliente no accede directamente a D1.
 
-El total de compra es independiente de la suma de sus líneas. Las asociaciones documentales se actualizan sin borrar originales; un documento no se reasigna silenciosamente a otra compra. Los documentos sobreviven al borrado lógico. No se habilita limpieza destructiva.
+El total de compra es independiente de la suma de sus líneas. Las asociaciones documentales se actualizan sin borrar originales; un documento no se reasigna silenciosamente a otra compra. Los documentos sobreviven al borrado lógico. No se elimina el último original local. El reemplazo remoto por una copia optimizada exige verificación de sus bytes y actualización canónica previa a la limpieza (ADR 0005).
 
 Pendientes: devoluciones parciales, reclamaciones, reglas jurídicas versionadas, comercios normalizados y políticas con evidencias. Las fechas manuales no constituyen un motor legal.
 

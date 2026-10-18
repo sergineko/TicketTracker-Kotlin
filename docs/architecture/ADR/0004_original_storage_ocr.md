@@ -1,5 +1,7 @@
 # ADR 0004 Original único remoto y propuestas OCR
 
+La política de almacenamiento remoto de esta decisión fue sustituida por ADR 0005 por aclaración posterior del propietario. Las reglas de OCR y conservación local siguen vigentes.
+
 18/10/2026. El propietario observa una imagen con tres tamaños en R2 y solicita reducir espacio y agilizar el registro de tickets. Se mantiene íntegro el original, sin compresión destructiva, y se separan los archivos de conservación de las vistas previas regenerables.
 
 Las nuevas importaciones conservan el original y una miniatura local; dejan de generar el JPEG optimizado sin uso. El DTO cloud declara solo ORIGINAL; el manifiesto ZIP sigue describiendo todos los archivos locales. El transporte respeta el payload ya persistido en operaciones anteriores para no romper la idempotencia. El Worker valida las variantes de clientes antiguos, pero normaliza las nuevas reservas a ORIGINAL_ONLY y acepta como no-op sus subidas derivadas. Los originales mantienen las comprobaciones de tamaño, MIME y SHA-256. Las miniaturas de originales descargados se regeneran en caché privada del dispositivo cuando están disponibles.

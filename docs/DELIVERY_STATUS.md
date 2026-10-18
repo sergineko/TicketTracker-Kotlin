@@ -21,7 +21,7 @@ Actualizado el 18/10/2026. Versión de pruebas **0.1.3**, versionCode 4. **El MV
 | Producción actual | DEPLOYED | Worker b6be4643cbc04222a56244fc7c5d03d0, hash 95552df3e9235539afcce37b5f30a627a8da095295b1a8a4df7dcefc22e3d171. Configuración, secretos cifrados, cuotas y cron conservados; health 200, storage sin sesión 401 |
 | R2/D1 reales | VERIFIED | Dos WebP descargados desde R2 con tamaño/hash coincidentes; dos documentos en revisión 4 y OPTIMIZED_IMAGE. Tras confirmación final se retiraron solo los dos JPEG anteriores. Quedan 2 imágenes (1933580 bytes) + 1 PDF (616), total 1934196 bytes; ahorro 68,9 % frente a 6217491. Originales locales verificados y preservados |
 | Compilación/estático | VERIFIED_LOCAL | Debug y release optimizada sin firma, dominio y Lint app/database/documents sin errores. Avisos pendientes de versiones/SDK/recursos/estilo; no equivalen a errores de compilación |
-| CI anterior | VERIFIED | 57485dd, run 39119777386: build, Worker y dispositivos API 29/36 correctos. El CI del nuevo código se valida tras subir este incremento. PR #11 Kotlin/Hilt incompatible sigue sin integrar |
+| CI 0.1.3 | VERIFIED | Código 7c0f07c, run 39127114216: Worker, build y dispositivos API 29/36 completados correctamente. CI anterior 57485dd también correcto. PR #11 Kotlin/Hilt incompatible sigue sin integrar |
 | Supabase/Coolify | HISTORICAL_READ_ONLY | Fuera del producto; sin cambios en VPS, bases compartidas ni otros proyectos |
 
 VERIFIED_LOCAL acredita solo la prueba indicada. Los fixtures sintéticos y las capturas de pruebas no se incluyen en la APK. Las imágenes reales se procesaron mediante entrada local explícita y no forman parte de los tests ni de Git.
