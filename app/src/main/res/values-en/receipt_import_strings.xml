@@ -1,0 +1,8 @@
+<resources>
+    <string name="ocr_incomplete">Incomplete reading. Review the merchant, date, total and items. Unrecognized fields remain blank.</string>
+    <string name="share_title">Import from another app</string>
+    <string name="share_attachment_help">Choose an attachment. Review the extracted data before saving the purchase.</string>
+    <string name="share_attachment">Attachment %1$d</string>
+    <string name="share_text_help">Only text was shared. A draft opens without a receipt attachment; review the data or share the PDF to keep it.</string>
+    <string name="share_text_import">Review receipt text</string>
+</resources>

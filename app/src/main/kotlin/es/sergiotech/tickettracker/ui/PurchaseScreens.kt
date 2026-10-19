@@ -84,6 +84,14 @@ fun PurchaseEditorScreen(
             }
             if (draft.extracted)
                 Text(label(R.string.extracted_notice), color = MaterialTheme.colorScheme.primary)
+            if (
+                draft.extracted &&
+                    (draft.merchant.isBlank() ||
+                        draft.date.isBlank() ||
+                        draft.total.isBlank() ||
+                        draft.lines.none { it.name.isNotBlank() })
+            )
+                Text(label(R.string.ocr_incomplete), color = MaterialTheme.colorScheme.error)
             Field(
                 draft.merchant,
                 { value -> vm.edit { it.copy(merchant = value.take(200)) } },
@@ -92,7 +100,7 @@ fun PurchaseEditorScreen(
             )
             DateField(
                 draft.date,
-                { value -> vm.edit { it.copy(date = value) } },
+                { value -> vm.edit { it.copy(date = value, dateEdited = true) } },
                 R.string.purchase_date,
             )
             Field(

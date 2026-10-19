@@ -1,7 +1,7 @@
 package es.sergiotech.tickettracker
 
+import android.content.ComponentName
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -11,9 +11,11 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.lifecycleScope
 import dagger.hilt.android.AndroidEntryPoint
 import es.sergiotech.tickettracker.core.documents.PrivateDocumentStore
+import es.sergiotech.tickettracker.data.sharedReceipt
 import es.sergiotech.tickettracker.domain.ReceiptDocument
 import es.sergiotech.tickettracker.domain.SyncController
 import es.sergiotech.tickettracker.ui.AccountViewModel
+import es.sergiotech.tickettracker.ui.GmailViewModel
 import es.sergiotech.tickettracker.ui.TicketTrackerApp
 import es.sergiotech.tickettracker.ui.TrackerViewModel
 import javax.inject.Inject
@@ -24,13 +26,16 @@ import kotlinx.coroutines.launch
 class MainActivity : ComponentActivity() {
     private val viewModel: TrackerViewModel by viewModels()
     private val accountViewModel: AccountViewModel by viewModels()
+    private val gmailViewModel: GmailViewModel by viewModels()
     @Inject lateinit var store: PrivateDocumentStore
     @Inject lateinit var sync: SyncController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent { TicketTrackerApp(viewModel, accountViewModel, store, ::openDocument) }
+        setContent {
+            TicketTrackerApp(viewModel, accountViewModel, store, ::openDocument, gmailViewModel)
+        }
         if (savedInstanceState == null) receiveShare(intent)
     }
 
@@ -40,14 +45,9 @@ class MainActivity : ComponentActivity() {
         receiveShare(intent)
     }
 
-    @Suppress("DEPRECATION")
     private fun receiveShare(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND) return
-        val uri =
-            if (android.os.Build.VERSION.SDK_INT >= 33)
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            else intent.getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
-        uri?.takeIf { it.scheme == "content" }?.let { viewModel.importDocument(it) }
+        val shared = sharedReceipt(intent)
+        viewModel.offerShared(shared)
     }
 
     private fun openDocument(document: ReceiptDocument) {
@@ -62,9 +62,16 @@ class MainActivity : ComponentActivity() {
                         store.file(original),
                     )
                 startActivity(
-                    Intent(Intent.ACTION_VIEW)
-                        .setDataAndType(uri, original.mimeType)
-                        .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    Intent.createChooser(
+                            Intent(Intent.ACTION_VIEW)
+                                .setDataAndType(uri, original.mimeType)
+                                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION),
+                            null,
+                        )
+                        .putExtra(
+                            Intent.EXTRA_EXCLUDE_COMPONENTS,
+                            arrayOf(ComponentName(this@MainActivity, MainActivity::class.java)),
+                        )
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled

@@ -92,11 +92,65 @@ class DocumentPipelineTest {
     }
 
     @Test
+    fun smallDigitalReceiptPreservesPhysicalTableRowsAndUnitPrices() = runTest {
+        val input = temp("png")
+        val bitmap = Bitmap.createBitmap(480, 650, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).apply {
+            drawColor(Color.WHITE)
+            val paint =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.BLACK
+                    textSize = 19f
+                    typeface = android.graphics.Typeface.MONOSPACE
+                }
+            drawText("TIENDA EJEMPLO, S.A. A-12345678", 15f, 50f, paint)
+            drawText("18/10/2026 15:55", 15f, 100f, paint)
+            drawText("Cnt. Descripcion", 15f, 170f, paint)
+            drawText("P.Unit", 310f, 170f, paint)
+            drawText("Importe", 390f, 170f, paint)
+            drawText("1 PAN", 15f, 220f, paint)
+            drawText("1,70", 400f, 220f, paint)
+            drawText("2 JABON", 15f, 270f, paint)
+            drawText("2,95", 310f, 270f, paint)
+            drawText("5,90", 400f, 270f, paint)
+            drawText("TOTAL (EUR)", 200f, 340f, paint)
+            drawText("7,60", 400f, 340f, paint)
+        }
+        input.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
+        try {
+            val result = store.import(uri(input))
+            try {
+                assertEquals("TIENDA EJEMPLO", result.extraction.merchant?.value)
+                assertEquals(java.time.LocalDate.of(2026, 10, 18), result.extraction.date?.value)
+                assertEquals(Money(760), result.extraction.total?.value)
+                assertEquals(
+                    listOf(ReceiptItem("PAN", 1, Money(170)), ReceiptItem("JABON", 2, Money(295))),
+                    result.extraction.items,
+                )
+                assertFalse(result.ocrFailed)
+                assertFalse(result.optimizationFailed)
+                assertTrue(
+                    store.verify(
+                        result.document.variants.single { it.kind == VariantKind.ORIGINAL }
+                    )
+                )
+            } finally {
+                store.discardUncommitted(result.document)
+            }
+        } finally {
+            input.delete()
+        }
+    }
+
+    @Test
     fun pdfIsPreservedWithoutRasterizingItsStoredOriginal() = runTest {
         val input = temp("pdf")
         val pdf = PdfDocument()
         try {
             val page = pdf.startPage(PdfDocument.PageInfo.Builder(600, 800, 1).create())
+            page.canvas.drawText("TIENDA EJEMPLO", 40f, 40f, Paint().apply { textSize = 25f })
+            page.canvas.drawText("18/10/2026", 40f, 70f, Paint().apply { textSize = 25f })
             page.canvas.drawText("TOTAL 12,50", 40f, 100f, Paint().apply { textSize = 30f })
             pdf.finishPage(page)
             input.outputStream().use(pdf::writeTo)
@@ -110,6 +164,9 @@ class DocumentPipelineTest {
                 assertEquals("application/pdf", original.mimeType)
                 assertArrayEquals(input.readBytes(), store.file(original).readBytes())
                 assertFalse(result.document.variants.any { it.kind == VariantKind.OPTIMIZED })
+                assertEquals("TIENDA EJEMPLO", result.extraction.merchant?.value)
+                assertEquals(java.time.LocalDate.of(2026, 10, 18), result.extraction.date?.value)
+                assertEquals(Money(1250), result.extraction.total?.value)
             } finally {
                 store.discardUncommitted(result.document)
             }

@@ -1,0 +1,23 @@
+<resources>
+    <string name="mail_title">Receipts from email</string>
+    <string name="mail_intro">Search Gmail and choose the PDF or image to import. A draft opens so you can review the purchase.</string>
+    <string name="mail_privacy">This is optional and needs email read access separate from sign-in. We only request headers and attachments; we never send, delete or mark messages. Searches cover the past year. Selected attachments are processed on your phone and follow your account sync settings. Emails containing only a link cannot be imported here yet.</string>
+    <string name="mail_connect">Connect Gmail to find receipts</string>
+    <string name="mail_disconnect">Revoke Gmail permission</string>
+    <string name="mail_query">Search merchant or receipt</string>
+    <string name="mail_query_hint">Merchant, invoice, from:store…</string>
+    <string name="mail_search">Find attachments</string>
+    <string name="mail_more">Load more emails</string>
+    <string name="mail_import">Import and review purchase</string>
+    <string name="mail_loading">Searching Gmail…</string>
+    <string name="mail_empty">No supported PDF or image attachments found. Change your search or use Share from your email app.</string>
+    <string name="mail_no_subject">No subject</string>
+    <string name="mail_auth_error">Connect Gmail again to renew email access.</string>
+    <string name="mail_permission_error">Gmail read permission is missing. Grant it when connecting, or import using Share.</string>
+    <string name="mail_disabled_error">Gmail is not enabled for this project yet. Share the PDF while configuration is completed.</string>
+    <string name="mail_rate_error">Google temporarily limited requests. Try again later.</string>
+    <string name="mail_large_error">The attachment exceeds 25 MiB or the response is too large.</string>
+    <string name="mail_invalid_error">The attachment does not match its declared size. It was not imported.</string>
+    <string name="mail_cancelled">Email access canceled. You can still use Share.</string>
+    <string name="mail_network_error">Could not check email. Check your connection and try again.</string>
+</resources>

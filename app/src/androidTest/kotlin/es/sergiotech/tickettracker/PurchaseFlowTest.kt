@@ -12,6 +12,48 @@ class PurchaseFlowTest {
     @get:Rule val compose = createAndroidComposeRule<MainActivity>()
 
     @Test
+    fun sharedMailTextOpensAReviewDraftWithoutInventingADocument() {
+        compose.waitUntil(30_000) {
+            compose.onAllNodesWithTag("add-menu").fetchSemanticsNodes().isNotEmpty()
+        }
+        val vm = ViewModelProvider(compose.activity)[TrackerViewModel::class.java]
+        val previousDocuments = vm.state.value.documents.size
+        val launchIntent = android.content.Intent(compose.activity.intent)
+        try {
+            compose.runOnUiThread {
+                compose.activity.startActivity(
+                    android.content
+                        .Intent(compose.activity, MainActivity::class.java)
+                        .setAction(android.content.Intent.ACTION_SEND)
+                        .setType("text/plain")
+                        .putExtra(
+                            android.content.Intent.EXTRA_TEXT,
+                            "TIENDA CORREO\n18/10/2026\nPAN 1,70\nTOTAL 1,70 EUR",
+                        )
+                        .addFlags(
+                            android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                                android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        )
+                )
+            }
+            val title = compose.activity.getString(R.string.share_text_import)
+            compose.waitUntil(15_000) {
+                compose.onAllNodesWithText(title).fetchSemanticsNodes().isNotEmpty()
+            }
+            compose.onNodeWithText(title).performClick()
+            compose.onNodeWithTag("merchant").assertTextContains("TIENDA CORREO")
+            compose.onNodeWithTag("total").assertTextContains("1.70")
+            org.junit.Assert.assertTrue(vm.editor.value.documentIds.isEmpty())
+            org.junit.Assert.assertEquals(previousDocuments, vm.state.value.documents.size)
+            org.junit.Assert.assertEquals("2026-10-18", vm.editor.value.date)
+            org.junit.Assert.assertEquals("PAN", vm.editor.value.lines.single().name)
+        } finally {
+            // ActivityScenario matches lifecycle events against its launch intent.
+            compose.runOnUiThread { compose.activity.intent = launchIntent }
+        }
+    }
+
+    @Test
     fun manualPurchaseCanBeSavedSearchedAndReopened() {
         val merchant = "Tienda UI ${System.currentTimeMillis()}"
         compose.waitUntil(30_000) {

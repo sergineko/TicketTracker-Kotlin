@@ -147,9 +147,12 @@ class RoomPurchaseRepository(
     override suspend fun addDocument(document: ReceiptDocument): ReceiptDocument {
         val owner = identity.identity.first().id
         val original = document.variants.first { it.kind == VariantKind.ORIGINAL }
+        require(document.ownerId.isBlank() || document.ownerId == owner) { "Import owner changed" }
         return db.withTransaction {
             val duplicate = dao.duplicate(owner, original.sha256)
             if (duplicate != null) {
+                if (document.extractedText.isNotBlank())
+                    dao.putDocument(duplicate.document.copy(extractedText = document.extractedText))
                 // A restored cloud image may have no local source yet. Keep the newly
                 // supplied original under its existing private path, attached to that ID.
                 if (duplicate.variants.none { it.kind == VariantKind.ORIGINAL.name }) {
@@ -171,7 +174,10 @@ class RoomPurchaseRepository(
                         )
                         .model()
                 }
-                return@withTransaction duplicate.model()
+                return@withTransaction requireNotNull(
+                        dao.documentRecord(duplicate.document.id, owner)
+                    )
+                    .model()
             }
             val saved = document.copy(ownerId = owner)
             dao.putDocument(

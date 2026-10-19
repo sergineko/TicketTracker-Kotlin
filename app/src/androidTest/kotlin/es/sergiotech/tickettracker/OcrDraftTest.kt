@@ -24,6 +24,13 @@ class OcrDraftTest {
     }
 
     @Test
+    fun missingDateDoesNotPretendTodayWasRecognizedAndExplicitUserDateWins() {
+        assertEquals("", EditorState().withExtraction(ReceiptExtraction()).date)
+        val typed = EditorState(date = java.time.LocalDate.now().toString(), dateEdited = true)
+        assertEquals(typed.date, typed.withExtraction(extraction).date)
+    }
+
+    @Test
     fun importsPreserveTypedItemsPricesCurrencyAndDeadlines() {
         val line =
             LineDraft(name = "Escrito por el usuario", price = "5.00", warrantyEnd = "2028-10-18")

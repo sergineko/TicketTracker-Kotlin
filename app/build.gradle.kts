@@ -12,8 +12,8 @@ android {
         applicationId = "es.sergiotech.tickettracker"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.1.3"
+        versionCode = 5
+        versionName = "0.1.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val apiUrl = providers.gradleProperty("tickettrackerApiUrl").orElse("").get()
         require(apiUrl.isEmpty() || (apiUrl.startsWith("https://") && !apiUrl.contains('"')))
@@ -67,6 +67,8 @@ dependencies {
     implementation(libs.credentials)
     implementation(libs.credentials.google)
     implementation(libs.googleid)
+    implementation(libs.google.authorization)
+    implementation(libs.coroutines.play.services)
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)
     implementation(libs.camera.core)

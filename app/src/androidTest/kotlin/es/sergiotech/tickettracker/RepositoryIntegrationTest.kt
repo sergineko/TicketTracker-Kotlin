@@ -148,4 +148,32 @@ class RepositoryIntegrationTest {
         assertEquals(first.id, duplicate.id)
         assertEquals(1, repository.observeDocuments().first().size)
     }
+
+    @Test
+    fun reimportRefreshesLocalOcrAndRejectsAnImportPreparedInAnotherVault() = runTest {
+        val document =
+            ReceiptDocument(
+                displayName = "Ticket",
+                extractedText = "old",
+                variants =
+                    listOf(
+                        DocumentVariant(
+                            kind = VariantKind.ORIGINAL,
+                            relativePath = "test/original",
+                            mimeType = "image/png",
+                            byteSize = 1,
+                            sha256 = "c".repeat(64),
+                        )
+                    ),
+            )
+        val saved = repository.addDocument(document)
+        repository.addDocument(document.copy(id = newId(), extractedText = "TOTAL 22,07"))
+        assertEquals("TOTAL 22,07", repository.observeDocuments().first().single().extractedText)
+        assertEquals(saved.id, repository.observeDocuments().first().single().id)
+        try {
+            repository.addDocument(document.copy(ownerId = "owner-b"))
+            fail("Cross-vault import accepted")
+        } catch (_: IllegalArgumentException) {}
+        assertEquals(1, repository.observeDocuments().first().size)
+    }
 }

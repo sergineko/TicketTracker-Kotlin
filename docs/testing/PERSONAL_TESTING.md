@@ -1,6 +1,6 @@
 # Prueba personal en Android
 
-La APK `TicketTracker-0.1.3-pruebas.apk` de `entregas/` está firmada con la clave debug de este entorno. Es un APK universal para Android 10/API 29 o posterior. No es una publicación en Google Play. La release optimizada se compila por separado y no es el archivo de instalación entregado.
+La APK `TicketTracker-0.1.4-pruebas.apk` de `entregas/` está firmada con la misma clave debug del piloto Google. Es un APK universal para Android 10/API 29 o posterior. Tamaño 126072725 bytes; SHA-256 `08e94190b81c577a93c81754125d6ae77bc6f894af9f13e3be33fe6513e6cab7`. No es una publicación en Google Play. La release optimizada se compila por separado y no es el archivo de instalación entregado.
 
 ## Instalar
 
@@ -15,6 +15,9 @@ La aplicación empieza con tu inventario real vacío; los productos de las captu
 - Pulsa «+» y registra una compra con dos artículos. Añade fechas de garantía y devolución confirmadas por ti. Guarda, busca desde Productos, edita y vuelve a abrirla.
 - Comprueba Garantía activa (hasta su último día), Crítica (vencimiento entre hoy y 30 días) y Devoluciones posibles (fecha de devolución registrada aún vigente). Pulsa cada contador. Las categorías se solapan; el canal de compra no genera automáticamente un derecho de desistimiento.
 - Desde «+», escanea un ticket con la cámara e importa una imagen/PDF. Revisa comercio, fecha, total y artículos propuestos. Si aparecen fechas impresas, usa el botón del producto correspondiente; no se aplican a todos automáticamente. Revisa antes de guardar y abre el documento. Un error de OCR conserva el documento. El PDF se reconoce solo en su primera página.
+- Reimporta la captura del ticket digital: revisa sus nueve líneas, cantidades, fecha y total. El total de IVA no debe sustituir el total de compra. Las descripciones pueden contener errores de letras; corrígelas antes de guardar. Una fecha desconocida queda vacía. Si el documento ya existe sin compra, se abre de nuevo la revisión con la nueva lectura.
+- Desde tu app de correo, abre el adjunto PDF/imagen y usa Compartir → TicketTracker. Con varios adjuntos, elige uno. Texto seleccionado compartido abre un borrador sin justificante, con aviso explícito. Los enlaces web no se descargan automáticamente.
+- En Tickets o «+» → Tickets del correo, pulsa Conectar Gmail y concede el permiso de lectura opcional a la cuenta piloto. Este permiso es distinto del inicio de sesión en TicketTracker y permite leer correo. Busca un comercio, elige un adjunto y revisa la compra. Se consulta el último año con paginación. Los correos que solo contienen enlaces no aparecen como documentos importables. La primera prueba de consentimiento/lectura real en el móvil queda pendiente del propietario. Puedes retirar solo el permiso Gmail desde esa pantalla.
 - Abre Suscripciones y Seguros. Registra nombre, importe, periodo y próxima fecha; edita y elimina un registro. Estas dos secciones guardan datos **solo en el móvil**, sin sincronización ni notificaciones por ahora.
 - En Más, prueba tema claro/oscuro, tamaño de fuente de Android y recordatorios opt-in de garantías/devoluciones.
 - En Más, exporta el ZIP y comprueba que contiene `manifest.json`, tus contratos y los archivos disponibles. El manifiesto v3 indica si falta el original y solo está la copia optimizada. El ZIP no está cifrado y todavía no hay un restaurador integrado.

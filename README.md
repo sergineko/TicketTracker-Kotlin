@@ -2,11 +2,13 @@
 
 Aplicación Android nativa de Sergiotech para organizar compras, justificantes, garantías y devoluciones. Kotlin, Compose, Material 3. Paquete `es.sergiotech.tickettracker`, Android 10/API 29 o superior; objetivo API 36.
 
-## Incremento 0.1.3
+## Incremento 0.1.4
 
 - Alta, edición, borrado lógico y búsqueda de compras con artículos y fechas independientes.
 - Room observable, importes enteros, revisiones y outbox transaccional.
 - CameraX, SAF, compartir PDF/imagen desde otras apps y OCR local ML Kit.
+- OCR de tablas de tickets digitales: comercio con CIF, fecha, total separado de IVA y cantidades/precios. Capturas pequeñas y texto PDF nativo en Android 35+. Comprobado con la captura privada aportada; las propuestas siguen siendo editables.
+- Buscar tickets en Gmail con autorización opcional independiente y elegir un adjunto; Compartir uno o varios PDF/imágenes, Abrir con y texto seleccionado con revisión. [Alcance y límites](docs/architecture/ADR/0006_receipt_email_import.md), [configuración de Gmail](docs/integrations/GMAIL_DEPLOYMENT.md).
 - R2 recibe una sola imagen optimizada de hasta 2 MiB; conserva el original en el móvil. Miniaturas locales, PDF íntegro (hasta 25 MiB), SHA-256, duplicados por procedencia y ZIP v3. Despliegue y conversión de los dos JPEG aprobados ya verificados; [inventario y evidencia](docs/integrations/OPTIMIZED_IMAGES_DEPLOYMENT.md).
 - OCR propone artículos/cantidades/precios y fechas impresas por producto, sin sobrescribir campos ni calcular plazos legales.
 - Pantalla de cuenta con identidad, estado y alcance de sincronización, opciones de acceso secundarias e icono integrado en oscuro.
@@ -40,7 +42,7 @@ En Windows, el script selecciona el JDK de Android Studio y usa `.local/` para G
 
 La release está optimizada y sin firma de distribución. La APK debug se genera en `app/build/outputs/apk/debug/app-debug.apk`. API 36 se ha probado localmente. El resultado vigente de CI para API 29/36 se recoge en el estado central.
 
-La APK firmada para la prueba personal se entrega en `entregas/TicketTracker-0.1.2-pruebas.apk` (excluida de Git). Instrucciones y límites en [Prueba personal](docs/testing/PERSONAL_TESTING.md).
+La APK firmada para la prueba personal se entrega en `entregas/TicketTracker-0.1.4-pruebas.apk` (excluida de Git). Instrucciones y límites en [Prueba personal](docs/testing/PERSONAL_TESTING.md).
 
 `gradle.properties` contiene la configuración **pública** del piloto. Puede sustituirse con `-PtickettrackerApiUrl=https://…` y `-PtickettrackerGoogleClientId=…`; para una compilación solo local, pasar ambas propiedades vacías. El segundo es el cliente web de audiencia del token. Google debug solo admite la huella registrada en [GOOGLE_AUTH.md](docs/integrations/GOOGLE_AUTH.md); otra firma necesita su cliente Android. Nunca introducir claves Cloudflare, Resend, S3 ni administrativas en el APK.
 

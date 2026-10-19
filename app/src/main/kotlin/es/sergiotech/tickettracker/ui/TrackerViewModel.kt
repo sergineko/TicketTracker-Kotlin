@@ -39,6 +39,8 @@ data class LineDraft(
     val returnEnd: String = "",
 )
 
+data class SharedAttachment(val uri: Uri, val name: String?)
+
 data class EditorState(
     val original: Purchase? = null,
     val merchant: String = "",
@@ -55,6 +57,7 @@ data class EditorState(
     val busy: Boolean = false,
     val extracted: Boolean = false,
     val printedDeadlines: List<PrintedDeadline> = emptyList(),
+    val dateEdited: Boolean = false,
 )
 
 enum class EditorError {
@@ -77,6 +80,7 @@ sealed interface UiEvent {
         val duplicate: Boolean,
         val ocrFailed: Boolean,
         val optimizationFailed: Boolean = false,
+        val review: Boolean = true,
     ) : UiEvent
 
     data class Message(val key: String) : UiEvent
@@ -92,7 +96,48 @@ constructor(
     private val documents: PrivateDocumentStore,
     private val exporter: VaultExporter,
     private val coverage: CoverageRepository,
+    private val identity: IdentityGateway,
 ) : ViewModel() {
+    private val _sharedAttachments = MutableStateFlow<List<SharedAttachment>>(emptyList())
+    val sharedAttachments = _sharedAttachments.asStateFlow()
+    private val _sharedText = MutableStateFlow<String?>(null)
+    val sharedText = _sharedText.asStateFlow()
+    private var pendingText: String? = null
+
+    fun offerShared(shared: SharedReceipt) {
+        if (shared.uris.isEmpty() && shared.text == null) return
+        viewModelScope.launch {
+            _sharedAttachments.value =
+                withContext(Dispatchers.IO) {
+                    shared.uris.map { uri ->
+                        val name =
+                            try {
+                                documents.displayName(uri)
+                            } catch (_: Exception) {
+                                null
+                            }
+                        SharedAttachment(uri, name)
+                    }
+                }
+            _sharedText.value = shared.text
+        }
+    }
+
+    fun dismissShared() {
+        _sharedAttachments.value = emptyList()
+        _sharedText.value = null
+    }
+
+    fun useSharedText(intoEditor: Boolean) {
+        val text = _sharedText.value ?: return
+        if (intoEditor)
+            _editor.update {
+                it.withExtraction(ReceiptExtractor().extract(text)).copy(extracted = true)
+            }
+        else pendingText = text
+        dismissShared()
+    }
+
     private val _state = MutableStateFlow(TrackerState())
     val state = _state.asStateFlow()
     private val _editor = MutableStateFlow(EditorState())
@@ -175,6 +220,12 @@ constructor(
             } ?: EditorState()
         pendingImport?.let { applyImport(it) }
         pendingImport = null
+        pendingText?.let { text ->
+            _editor.update {
+                it.withExtraction(ReceiptExtractor().extract(text)).copy(extracted = true)
+            }
+        }
+        pendingText = null
     }
 
     fun edit(transform: (EditorState) -> EditorState) {
@@ -314,7 +365,7 @@ constructor(
             }
         }
 
-    fun importDocument(uri: Uri, intoEditor: Boolean = false) {
+    fun importDocument(uri: Uri, intoEditor: Boolean = false, expectedOwner: String? = null) {
         if (_processing.value) return
         _processing.value = true
         importJob =
@@ -322,11 +373,16 @@ constructor(
                 var result: ImportResult? = null
                 var committed = false
                 try {
+                    val owner = expectedOwner ?: identity.identity.first().id
+                    check(identity.identity.first().id == owner)
                     result = documents.import(uri)
                     val imported = result
+                    check(identity.identity.first().id == owner)
                     val saved =
                         withContext(NonCancellable + Dispatchers.IO) {
-                            repository.addDocument(imported.document).also { committed = true }
+                            repository.addDocument(imported.document.copy(ownerId = owner)).also {
+                                committed = true
+                            }
                         }
                     val duplicate = saved.id != imported.document.id
                     if (
@@ -351,7 +407,12 @@ constructor(
                         if (intoEditor) applyImport(accepted) else pendingImport = accepted
                     }
                     eventsChannel.send(
-                        UiEvent.Imported(duplicate, imported.ocrFailed, imported.optimizationFailed)
+                        UiEvent.Imported(
+                            duplicate,
+                            imported.ocrFailed,
+                            imported.optimizationFailed,
+                            saved.purchaseId == null,
+                        )
                     )
                 } catch (cancelled: CancellationException) {
                     throw cancelled
@@ -430,8 +491,12 @@ internal fun EditorState.withExtraction(extraction: ReceiptExtraction): EditorSt
     return copy(
         merchant = merchant.ifBlank { extraction.merchant?.value.orEmpty() },
         date =
-            if (original == null && date == LocalDate.now().toString())
-                extraction.date?.value?.toString() ?: date
+            if (
+                original == null &&
+                    !dateEdited &&
+                    (date.isBlank() || date == LocalDate.now().toString())
+            )
+                extraction.date?.value?.toString().orEmpty()
             else date,
         total =
             total.ifBlank {

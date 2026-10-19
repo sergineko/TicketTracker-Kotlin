@@ -10,8 +10,10 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -47,11 +49,14 @@ fun TicketTrackerApp(
     accountVm: AccountViewModel,
     store: PrivateDocumentStore,
     openDocument: (ReceiptDocument) -> Unit,
+    gmailVm: GmailViewModel? = null,
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     val accountState by accountVm.state.collectAsStateWithLifecycle()
     val editor by vm.editor.collectAsStateWithLifecycle()
     val processing by vm.processing.collectAsStateWithLifecycle()
+    val sharedAttachments by vm.sharedAttachments.collectAsStateWithLifecycle()
+    val sharedText by vm.sharedText.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
@@ -108,7 +113,7 @@ fun TicketTrackerApp(
                 is UiEvent.Imported -> {
                     if (
                         nav.currentBackStackEntry?.destination?.route?.startsWith("edit/") !=
-                            true && !event.duplicate
+                            true && event.review
                     )
                         startEditor()
                     snackbar.showSnackbar(
@@ -262,6 +267,13 @@ fun TicketTrackerApp(
                             composable("account") {
                                 AccountScreen(state, accountState, accountVm) { nav.popBackStack() }
                             }
+                            composable("mail") {
+                                gmailVm?.let { mail ->
+                                    GmailScreen(mail, { nav.popBackStack() }) { uri, owner ->
+                                        vm.importDocument(uri, expectedOwner = owner)
+                                    }
+                                }
+                            }
                             composable("contracts/{kind}") { backStack ->
                                 val kind =
                                     ContractKind.valueOf(backStack.arguments!!.getString("kind")!!)
@@ -294,7 +306,13 @@ fun TicketTrackerApp(
                                 )
                             }
                             composable("documents") {
-                                DocumentsScreen(state.documents, store, ::startImport, openDocument)
+                                DocumentsScreen(
+                                    state.documents,
+                                    store,
+                                    ::startImport,
+                                    openDocument,
+                                    if (gmailVm != null) ({ nav.navigate("mail") }) else null,
+                                )
                             }
                             composable("profile") {
                                 ProfileScreen(
@@ -396,6 +414,16 @@ fun TicketTrackerApp(
                                     startImport()
                                 },
                         )
+                        if (gmailVm != null)
+                            ListItem(
+                                headlineContent = { Text(label(R.string.mail_title)) },
+                                leadingContent = { Icon(Icons.Outlined.Email, null) },
+                                modifier =
+                                    Modifier.testTag("add-mail").clickable {
+                                        addMenu = false
+                                        nav.navigate("mail")
+                                    },
+                            )
                         ContractKind.entries.forEach { kind ->
                             ListItem(
                                 headlineContent = {
@@ -436,6 +464,66 @@ fun TicketTrackerApp(
                     },
                     confirmButton = {
                         TextButton(onClick = vm::cancelImport) { Text(label(R.string.cancel)) }
+                    },
+                )
+            if (!processing && (sharedAttachments.isNotEmpty() || sharedText != null))
+                AlertDialog(
+                    onDismissRequest = vm::dismissShared,
+                    title = { Text(label(R.string.share_title)) },
+                    text = {
+                        Column(
+                            Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Text(
+                                label(
+                                    if (sharedText != null) R.string.share_text_help
+                                    else R.string.share_attachment_help
+                                )
+                            )
+                            sharedAttachments.forEachIndexed { index, attachment ->
+                                OutlinedButton(
+                                    onClick = {
+                                        vm.dismissShared()
+                                        vm.importDocument(
+                                            attachment.uri,
+                                            nav.currentBackStackEntry
+                                                ?.destination
+                                                ?.route
+                                                ?.startsWith("edit/") == true,
+                                        )
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        attachment.name
+                                            ?: resources.getString(
+                                                R.string.share_attachment,
+                                                index + 1,
+                                            )
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        if (sharedText != null)
+                            TextButton(
+                                onClick = {
+                                    val intoEditor =
+                                        nav.currentBackStackEntry
+                                            ?.destination
+                                            ?.route
+                                            ?.startsWith("edit/") == true
+                                    vm.useSharedText(intoEditor)
+                                    if (!intoEditor) startEditor()
+                                }
+                            ) {
+                                Text(label(R.string.share_text_import))
+                            }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = vm::dismissShared) { Text(label(R.string.cancel)) }
                     },
                 )
         }

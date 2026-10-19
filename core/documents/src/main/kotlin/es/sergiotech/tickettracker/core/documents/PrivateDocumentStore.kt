@@ -48,6 +48,11 @@ class PrivateDocumentStore(
 ) : DocumentStore {
     private val root = File(context.filesDir, "vault").apply { mkdirs() }
 
+    fun displayName(uri: Uri): String? =
+        context.contentResolver
+            .query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+            ?.use { if (it.moveToFirst()) it.getString(0)?.take(180) else null }
+
     fun file(variant: DocumentVariant): File {
         val candidate = File(root, variant.relativePath).canonicalFile
         require(candidate.path.startsWith(root.canonicalPath + File.separator))
@@ -226,26 +231,23 @@ class PrivateDocumentStore(
                 var optimizationFailed = false
                 val text: String
                 try {
-                    text =
+                    val recognized =
                         try {
-                            val recognizer =
-                                TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                            try {
-                                recognizer
-                                    .process(InputImage.fromBitmap(bitmap, 0))
-                                    .await()
-                                    .text
-                                    .take(100_000)
-                            } finally {
-                                recognizer.close()
-                            }
+                            recognize(bitmap)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
-                            ocrFailed = true
                             ""
                         }
-
+                    // Embedded PDF text remains usable even if the OCR engine fails.
+                    val embedded =
+                        if (pdf && android.os.Build.VERSION.SDK_INT >= 35) pdfText(original) else ""
+                    text =
+                        listOf(recognized, embedded)
+                            .filter(String::isNotBlank)
+                            .maxByOrNull(::extractionScore)
+                            .orEmpty()
+                    ocrFailed = text.isBlank()
                     val thumb = scaled(bitmap, 320)
                     try {
                         val thumbnailFile = File(directory, "thumbnail.jpg")
@@ -325,6 +327,75 @@ class PrivateDocumentStore(
             }
         }
 
+    @androidx.annotation.RequiresApi(35)
+    private fun pdfText(file: File): String =
+        try {
+            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+                PdfRenderer(descriptor).use { renderer ->
+                    renderer.openPage(0).use { page ->
+                        page.textContents.joinToString("\n") { it.text }.take(100_000)
+                    }
+                }
+            }
+        } catch (_: Exception) {
+            ""
+        }
+
+    private fun extractionScore(text: String): Int {
+        val extraction = ReceiptExtractor().extract(text)
+        return (if (extraction.merchant != null) 3 else 0) +
+            (if (extraction.date != null) 5 else 0) +
+            (if (extraction.total != null) 8 else 0) +
+            minOf(30, extraction.items.size)
+    }
+
+    /**
+     * Word positions preserve table rows across OCR blocks. Small screenshots need larger glyphs.
+     */
+    private suspend fun recognize(source: Bitmap): String {
+        val scale =
+            minOf(
+                    3f,
+                    1000f / minOf(source.width, source.height),
+                    kotlin.math.sqrt(8_000_000f / (source.width.toLong() * source.height)),
+                    12000f / maxOf(source.width, source.height),
+                )
+                .coerceAtLeast(1f)
+        val bitmap =
+            if (scale > 1f)
+                Bitmap.createScaledBitmap(
+                    source,
+                    (source.width * scale).toInt(),
+                    (source.height * scale).toInt(),
+                    true,
+                )
+            else source
+        val recognizer = TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
+        try {
+            val result = recognizer.process(InputImage.fromBitmap(bitmap, 0)).await()
+            val boxes =
+                result.textBlocks
+                    .flatMap { it.lines }
+                    .flatMap { line ->
+                        line.elements.mapNotNull { word ->
+                            word.boundingBox?.let {
+                                ReceiptTextBox(
+                                    word.text,
+                                    it.left.toFloat(),
+                                    it.top.toFloat(),
+                                    it.right.toFloat(),
+                                    it.bottom.toFloat(),
+                                )
+                            }
+                        }
+                    }
+            return ReceiptLayout.readingText(boxes).ifBlank { result.text }.take(100_000)
+        } finally {
+            recognizer.close()
+            if (bitmap !== source) bitmap.recycle()
+        }
+    }
+
     private fun decodeImage(file: File, bounds: BitmapFactory.Options): Bitmap {
         if (
             bounds.outWidth <= 0 ||
@@ -387,9 +458,6 @@ class PrivateDocumentStore(
         sourceText: String,
     ): DocumentVariant {
         val target = File(file(original).parentFile, "cloud-v1.webp")
-        val format =
-            if (android.os.Build.VERSION.SDK_INT >= 30) Bitmap.CompressFormat.WEBP_LOSSY
-            else Bitmap.CompressFormat.WEBP
         val tokens =
             sourceText
                 .uppercase(java.util.Locale.ROOT)
@@ -399,7 +467,7 @@ class PrivateDocumentStore(
         val numbers = tokens.filter { it.any(Char::isDigit) }.toSet()
         val expected = ReceiptExtractor().extract(sourceText)
         for ((edge, quality) in
-            listOf(2400 to 84, 12000 to 78, 12000 to 84, 3600 to 90, 12000 to 94)) {
+            listOf(2400 to 84, 12000 to 78, 12000 to 84, 3600 to 90, 12000 to 94, 12000 to 100)) {
             currentCoroutineContext().ensureActive()
             val ratio =
                 minOf(
@@ -421,6 +489,13 @@ class PrivateDocumentStore(
                         android.graphics.Rect(0, 0, width, height),
                         android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG),
                     )
+                // Lossless is a final option for compact digital receipts: even a tiny
+                // lossy glyph change can move an otherwise valid table outside the OCR gate.
+                val format =
+                    if (android.os.Build.VERSION.SDK_INT >= 30) {
+                        if (quality == 100) Bitmap.CompressFormat.WEBP_LOSSLESS
+                        else Bitmap.CompressFormat.WEBP_LOSSY
+                    } else Bitmap.CompressFormat.WEBP
                 target.outputStream().use { check(candidate.compress(format, quality, it)) }
             } finally {
                 candidate.recycle()
@@ -439,13 +514,7 @@ class PrivateDocumentStore(
             val psnr = imagePsnr(source, decoded)
             val readBack =
                 try {
-                    val recognizer =
-                        TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS)
-                    try {
-                        recognizer.process(InputImage.fromBitmap(decoded, 0)).await().text
-                    } finally {
-                        recognizer.close()
-                    }
+                    recognize(decoded)
                 } finally {
                     decoded.recycle()
                 }

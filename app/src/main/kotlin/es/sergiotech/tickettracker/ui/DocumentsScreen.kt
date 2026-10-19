@@ -27,6 +27,7 @@ fun DocumentsScreen(
     store: PrivateDocumentStore,
     import: () -> Unit,
     open: (ReceiptDocument) -> Unit,
+    mail: (() -> Unit)? = null,
 ) {
     LazyColumn(
         contentPadding = PaddingValues(24.dp),
@@ -36,6 +37,13 @@ fun DocumentsScreen(
         item {
             OutlinedButton(onClick = import, modifier = Modifier.fillMaxWidth()) {
                 Text(label(R.string.import_document))
+            }
+        }
+        mail?.let { action ->
+            item {
+                OutlinedButton(onClick = action, modifier = Modifier.fillMaxWidth()) {
+                    Text(label(R.string.mail_title))
+                }
             }
         }
         if (documents.isEmpty())

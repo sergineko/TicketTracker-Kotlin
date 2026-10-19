@@ -9,6 +9,7 @@ La especificación de origen es `SOURCE_SPECIFICATION.md`, transcrita del Word. 
 - Compras manuales con múltiples artículos, edición, borrado lógico y búsqueda.
 - Room observable, transacciones, revisiones y outbox persistente; identidad local estable.
 - Importación de imagen/PDF, OCR local, confirmación editable, conservación de originales e integridad.
+- Lectura de filas de tickets digitales con comercio, fecha, total y cantidades/precios. Fecha desconocida vacía. Gmail opcional con permiso de lectura separado, búsqueda paginada y elección de adjunto; Compartir/Abrir con PDF o imagen y texto seleccionado con revisión. No importar enlaces ni compras automáticamente sin confirmación (ADR 0006).
 - Fechas confirmadas de garantía y devolución independientes, alertas y preferencias. OCR propone artículos y fechas absolutas impresas, aplicables por producto con revisión; no calcula periodos ni derechos legales.
 - R2 conserva una sola imagen optimizada por documento, hasta 2 MiB y sin superar el origen; el original y miniaturas quedan en el móvil (ADR 0005). PDF único íntegro. Compatibilidad con outbox anterior, recuperación de la copia optimizada y limpieza remota solo tras verificar el reemplazo y aprobar el inventario de producción.
 - Cuenta integrada con identidad, estado y alcance real de sincronización; tema oscuro sin placa blanca en la marca.

@@ -1,0 +1,8 @@
+<resources>
+    <string name="ocr_incomplete">Lectura incompleta. Revisa el comercio, la fecha, el total y los artículos. Los campos no reconocidos quedan vacíos.</string>
+    <string name="share_title">Importar desde otra app</string>
+    <string name="share_attachment_help">Elige el adjunto. Revisaremos sus datos antes de guardar la compra.</string>
+    <string name="share_attachment">Adjunto %1$d</string>
+    <string name="share_text_help">Solo se ha compartido texto. Se abrirá un borrador sin justificante adjunto; revisa los datos o comparte el PDF para conservarlo.</string>
+    <string name="share_text_import">Revisar texto del ticket</string>
+</resources>
