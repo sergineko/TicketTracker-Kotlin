@@ -21,7 +21,7 @@ Actualizado el 20/10/2026. Versión de pruebas **0.1.4**, versionCode 5. **El MV
 | Diseño | VERIFIED_LOCAL | Marca clara/oscura integrada, referencia compacta y contadores Garantía activa / Crítica / Devoluciones posibles; cuenta y nuevos controles Gmail comprobados en Compose |
 | Suscripciones/seguros | LOCAL_ONLY | CRUD, aislamiento y ZIP. Sin transporte cloud, avisos, cobros ni renovación automática |
 | Compilación/estático | VERIFIED_LOCAL | Debug, APK de tests y release optimizada sin firma correctas; Lint app/database/documents sin errores, con avisos de SDK/versiones/recursos/estilo. Spotless aplicado |
-| CI 0.1.4 | PENDING | Pendiente de publicar el código final y observar build, Worker y dispositivos API 29/36. CI 0.1.3 (39127114216, código 7c0f07c) terminó con los cuatro jobs correctos |
+| CI 0.1.4 | VERIFIED | Código 870102bb2d2b0ea978599dabc415ef9f4755d62f, run 39340190289: Worker, build y dispositivos API 29/36 completados con éxito. CI 0.1.3 también correcto. PR #11 Kotlin/Hilt incompatible sigue sin integrar |
 | Producción Cloudflare | DEPLOYED (18/10) | Worker b6be4643cbc04222a56244fc7c5d03d0; hash 95552df3e9235539afcce37b5f30a627a8da095295b1a8a4df7dcefc22e3d171. 30 pruebas Miniflare y health/storage verificadas en 0.1.3 |
 | R2/D1 reales | VERIFIED (18/10) | Dos WebP verificados por hash/tamaño y documentos en revisión 4; limpieza de los dos JPEG aprobada y terminada. 2 imágenes (1933580 bytes) + 1 PDF (616), total 1934196. Ahorro 68,9 %. Originales locales preservados; no se repite esa limpieza |
 | Supabase/Coolify | HISTORICAL_READ_ONLY | Fuera del producto; sin cambios en VPS, bases compartidas ni otros proyectos |
@@ -32,7 +32,7 @@ VERIFIED_LOCAL acredita solo la prueba indicada. Imágenes, documentos originale
 
 `entregas/TicketTracker-0.1.4-pruebas.apk`. SHA-256 `08e94190b81c577a93c81754125d6ae77bc6f894af9f13e3be33fe6513e6cab7`. Certificado SHA-1 `26:3A:4B:18:60:7F:E2:CD:88:56:57:1E:BB:3F:34:7E:DF:AF:CE:D2`, registrado en Google. ABI arm64-v8a/armeabi-v7a/x86/x86_64, minSdk 29, targetSdk 36. No incluye tokens ni secretos administrativos/OAuth. Instalar como actualización, sin desinstalar la versión anterior.
 
-Ejecutados dominio, Spotless, assembleDebug, assembleDebugAndroidTest, assembleRelease, Lint y suite instrumentada final mediante ADB. Evidencia privada: .local/ocr-mail-final-build.log, .local/ocr-mail-final-suite.log, .local/ocr-mail-share-ui.log y .local/ocr-validation/. AVD propio emulator-5562 API 36; no se usa el emulador API 37.2 del propietario. Un fallo de cierre del escenario de Compartir se corrigió restaurando el Intent de lanzamiento del test; recorrido y suite final pasan. API 29 se comprobará en CI.
+Ejecutados dominio, Spotless, assembleDebug, assembleDebugAndroidTest, assembleRelease, Lint y suite instrumentada final mediante ADB. Evidencia privada: .local/ocr-mail-final-build.log, .local/ocr-mail-final-suite.log, .local/ocr-mail-share-ui.log, .local/ocr-mail-ci-evidence.json y .local/ocr-validation/. AVD propio emulator-5562 API 36; no se usa el emulador API 37.2 del propietario. Un fallo de cierre del escenario de Compartir se corrigió restaurando el Intent de lanzamiento del test; recorrido y suite final pasan. API 29 y 36 comprobadas además en [CI 39340190289](https://github.com/sergineko/TicketTracker-Kotlin/actions/runs/39340190289). Emulador propio cerrado y sus copias temporales privadas retiradas; originales locales conservados.
 
 ## Producción y límites
 
