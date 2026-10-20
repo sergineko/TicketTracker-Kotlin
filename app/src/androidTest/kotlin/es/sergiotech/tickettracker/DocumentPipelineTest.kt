@@ -149,7 +149,13 @@ class DocumentPipelineTest {
         val pdf = PdfDocument()
         try {
             val page = pdf.startPage(PdfDocument.PageInfo.Builder(600, 800, 1).create())
-            page.canvas.drawText("TIENDA EJEMPLO", 40f, 40f, Paint().apply { textSize = 25f })
+            // A fixed-width space stays legible across platform PDF renderers and OCR versions.
+            val header =
+                Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    textSize = 25f
+                    typeface = android.graphics.Typeface.MONOSPACE
+                }
+            page.canvas.drawText("TIENDA EJEMPLO", 40f, 40f, header)
             page.canvas.drawText("18/10/2026", 40f, 70f, Paint().apply { textSize = 25f })
             page.canvas.drawText("TOTAL 12,50", 40f, 100f, Paint().apply { textSize = 30f })
             pdf.finishPage(page)
