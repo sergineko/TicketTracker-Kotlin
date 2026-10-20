@@ -15,7 +15,10 @@ data class ReceiptTextBox(
 
 object ReceiptLayout {
     /** Rebuild physical rows before parsing: OCR block order often separates amount columns. */
-    fun readingText(fragments: List<ReceiptTextBox>): String {
+    fun readingText(fragments: List<ReceiptTextBox>): String =
+        rows(fragments).joinToString("\n") { row -> row.joinToString(" ") { it.text.trim() } }
+
+    internal fun rows(fragments: List<ReceiptTextBox>): List<List<ReceiptTextBox>> {
         data class Row(val members: MutableList<ReceiptTextBox>) {
             val center
                 get() = members.map { (it.top + it.bottom) / 2 }.sorted()[members.size / 2]
@@ -37,10 +40,6 @@ object ReceiptLayout {
                     .minByOrNull { abs(it.center - center) }
             if (row == null) rows += Row(mutableListOf(box)) else row.members += box
         }
-        return rows
-            .sortedBy { it.center }
-            .joinToString("\n") { row ->
-                row.members.sortedBy { it.left }.joinToString(" ") { it.text.trim() }
-            }
+        return rows.sortedBy { it.center }.map { it.members.sortedBy { box -> box.left }.toList() }
     }
 }

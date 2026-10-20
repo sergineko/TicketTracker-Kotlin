@@ -31,6 +31,9 @@ data class ImportResult(
     val extraction: ReceiptExtraction,
     val ocrFailed: Boolean,
     val optimizationFailed: Boolean = false,
+    val processedPages: Int = 1,
+    val totalPages: Int = 1,
+    val partialRead: Boolean = false,
 )
 
 class DocumentImportException(val reason: Reason) : IOException(reason.name) {
@@ -44,6 +47,7 @@ class DocumentImportException(val reason: Reason) : IOException(reason.name) {
 
 class PrivateDocumentStore(
     private val context: Context,
+    private val nativePdfText: Boolean = true,
     private val optimizationMeasurement: ((Long, Double, Int, Double) -> Unit)? = null,
 ) : DocumentStore {
     private val root = File(context.filesDir, "vault").apply { mkdirs() }
@@ -229,24 +233,21 @@ class PrivateDocumentStore(
                 val bitmap = if (pdf) pdfPreview(original) else decodeImage(original, bounds)
                 var ocrFailed = false
                 var optimizationFailed = false
+                var pdfReading: PdfReading? = null
                 val text: String
                 try {
                     val recognized =
                         try {
-                            recognize(bitmap)
+                            if (pdf) {
+                                pdfReading = readPdf(original)
+                                pdfReading!!.text
+                            } else recognize(bitmap)
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
                             ""
                         }
-                    // Embedded PDF text remains usable even if the OCR engine fails.
-                    val embedded =
-                        if (pdf && android.os.Build.VERSION.SDK_INT >= 35) pdfText(original) else ""
-                    text =
-                        listOf(recognized, embedded)
-                            .filter(String::isNotBlank)
-                            .maxByOrNull(::extractionScore)
-                            .orEmpty()
+                    text = recognized
                     ocrFailed = text.isBlank()
                     val thumb = scaled(bitmap, 320)
                     try {
@@ -281,6 +282,9 @@ class PrivateDocumentStore(
                     ReceiptExtractor().extract(text),
                     ocrFailed,
                     optimizationFailed,
+                    pdfReading?.processed ?: 1,
+                    pdfReading?.total ?: 1,
+                    pdfReading?.partial ?: false,
                 )
             } catch (failure: Throwable) {
                 directory.deleteRecursively()
@@ -327,16 +331,84 @@ class PrivateDocumentStore(
             }
         }
 
-    @androidx.annotation.RequiresApi(35)
-    private fun pdfText(file: File): String =
-        try {
-            ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
-                PdfRenderer(descriptor).use { renderer ->
-                    renderer.openPage(0).use { page ->
-                        page.textContents.joinToString("\n") { it.text }.take(100_000)
+    private data class PdfReading(
+        val text: String,
+        val processed: Int,
+        val total: Int,
+        val partial: Boolean,
+    )
+
+    private suspend fun readPdf(file: File): PdfReading =
+        ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
+            PdfRenderer(descriptor).use { renderer ->
+                val text = StringBuilder()
+                val count = minOf(MAX_PDF_PAGES, renderer.pageCount)
+                var processed = 0
+                var partial = renderer.pageCount > count
+                for (index in 0 until count) {
+                    currentCoroutineContext().ensureActive()
+                    val pageText =
+                        renderer.openPage(index).use { page ->
+                            val embedded =
+                                if (nativePdfText && android.os.Build.VERSION.SDK_INT >= 35)
+                                    pdfText(page)
+                                else ""
+                            val recognized =
+                                try {
+                                    val scale =
+                                        minOf(
+                                            3200f / maxOf(page.width, page.height),
+                                            kotlin.math.sqrt(
+                                                8_000_000f / (page.width.toLong() * page.height)
+                                            ),
+                                        )
+                                    val bitmap =
+                                        Bitmap.createBitmap(
+                                            maxOf(1, (page.width * scale).toInt()),
+                                            maxOf(1, (page.height * scale).toInt()),
+                                            Bitmap.Config.ARGB_8888,
+                                        )
+                                    try {
+                                        bitmap.eraseColor(Color.WHITE)
+                                        page.render(
+                                            bitmap,
+                                            null,
+                                            null,
+                                            PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY,
+                                        )
+                                        recognize(bitmap)
+                                    } finally {
+                                        bitmap.recycle()
+                                    }
+                                } catch (cancelled: CancellationException) {
+                                    throw cancelled
+                                } catch (_: Exception) {
+                                    ""
+                                }
+                            // On equal completeness, digital text preserves spelling and
+                            // references.
+                            listOf(embedded, recognized)
+                                .filter(String::isNotBlank)
+                                .maxByOrNull(::extractionScore)
+                                .orEmpty()
+                        }
+                    processed++
+                    if (pageText.isBlank()) partial = true
+                    if (text.isNotEmpty()) text.append("\n\n")
+                    text.append(pageText)
+                    if (text.length >= 100_000) {
+                        partial = true
+                        break
                     }
                 }
+                PdfReading(text.toString().take(100_000), processed, renderer.pageCount, partial)
             }
+        }
+
+    @androidx.annotation.RequiresApi(35)
+    private fun pdfText(page: PdfRenderer.Page): String =
+        try {
+            page.textContents.joinToString("\n") { it.text }.take(100_000)
         } catch (_: Exception) {
             ""
         }
@@ -389,7 +461,12 @@ class PrivateDocumentStore(
                             }
                         }
                     }
-            return ReceiptLayout.readingText(boxes).ifBlank { result.text }.take(100_000)
+            val physical = ReceiptLayout.readingText(boxes).ifBlank { result.text }
+            val labelled = ReceiptLabelLayout.readingText(boxes)
+            return listOf(physical, labelled)
+                .filter(String::isNotBlank)
+                .joinToString("\n")
+                .take(100_000)
         } finally {
             recognizer.close()
             if (bitmap !== source) bitmap.recycle()
@@ -598,6 +675,7 @@ class PrivateDocumentStore(
     companion object {
         const val MAX_BYTES = 25L * 1024 * 1024
         const val MAX_CLOUD_IMAGE_BYTES = 2L * 1024 * 1024
+        const val MAX_PDF_PAGES = 10
 
         fun sha256(file: File): String {
             val digest = MessageDigest.getInstance("SHA-256")

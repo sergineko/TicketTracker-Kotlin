@@ -84,6 +84,8 @@ fun PurchaseEditorScreen(
             }
             if (draft.extracted)
                 Text(label(R.string.extracted_notice), color = MaterialTheme.colorScheme.primary)
+            if (draft.partialRead)
+                Text(label(R.string.ocr_partial), color = MaterialTheme.colorScheme.error)
             if (
                 draft.extracted &&
                     (draft.merchant.isBlank() ||

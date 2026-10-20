@@ -12,7 +12,8 @@
     <string name="mail_loading">Searching Gmail…</string>
     <string name="mail_empty">No supported PDF or image attachments found. Change your search or use Share from your email app.</string>
     <string name="mail_no_subject">No subject</string>
-    <string name="mail_auth_error">Connect Gmail again to renew email access.</string>
+    <string name="mail_auth_error">Gmail could not be authorized. If Google says the app is unverified or blocks access, check that you are using an account added to the project’s test users. Then reconnect Gmail.</string>
+    <string name="mail_testing_notice">Gmail is being tested: the selected account must be allowed in the project. Google may show an unverified application notice.</string>
     <string name="mail_permission_error">Gmail read permission is missing. Grant it when connecting, or import using Share.</string>
     <string name="mail_disabled_error">Gmail is not enabled for this project yet. Share the PDF while configuration is completed.</string>
     <string name="mail_rate_error">Google temporarily limited requests. Try again later.</string>

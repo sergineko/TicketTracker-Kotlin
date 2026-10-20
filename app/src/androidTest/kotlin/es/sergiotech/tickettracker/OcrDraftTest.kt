@@ -31,6 +31,21 @@ class OcrDraftTest {
     }
 
     @Test
+    fun labelledReferenceAndDeliveryFillOnlyEmptyFields() {
+        val read =
+            ReceiptExtractor()
+                .extract(
+                    "TIENDA\nFecha de factura 21.08.2026\nPedido online número\nP-9876\nFecha de entrega\n23.08.2026\nTOTAL 20,00"
+                )
+        val empty = EditorState().withExtraction(read)
+        assertEquals("P-9876", empty.order)
+        assertEquals("2026-08-23", empty.delivered)
+        val typed = EditorState(order = "Escrita", delivered = "2026-09-01").withExtraction(read)
+        assertEquals("Escrita", typed.order)
+        assertEquals("2026-09-01", typed.delivered)
+    }
+
+    @Test
     fun importsPreserveTypedItemsPricesCurrencyAndDeadlines() {
         val line =
             LineDraft(name = "Escrito por el usuario", price = "5.00", warrantyEnd = "2028-10-18")

@@ -159,6 +159,10 @@ internal fun GmailContent(
             item {
                 Icon(Icons.Outlined.Email, null, tint = MaterialTheme.colorScheme.primary)
                 Text(label(R.string.mail_intro), style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    label(R.string.mail_testing_notice),
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
             item {
                 Text(

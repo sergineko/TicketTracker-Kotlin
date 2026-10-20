@@ -57,7 +57,7 @@
     <string name="in_store">Tienda física</string>
     <string name="online">Por internet</string>
     <string name="other">Otro</string>
-    <string name="order_number">Número de pedido (opcional)</string>
+    <string name="order_number">Referencia de pedido o factura (opcional)</string>
     <string name="notes">Notas</string>
     <string name="items">Artículos</string>
     <string name="item_number">Artículo %1$d</string>
@@ -75,10 +75,11 @@
     <string name="receipt_section">Justificantes</string>
     <string name="attach_existing">Adjuntar documento guardado</string>
     <string name="document_saved_separately">Los documentos importados también se guardan en Documentos, aunque salgas sin guardar la compra.</string>
-    <string name="extracted_notice">Hemos encontrado estos datos. Revísalos antes de guardar; el reconocimiento puede equivocarse. Los artículos se añaden manualmente.</string>
+    <string name="extracted_notice">Hemos encontrado estos datos y artículos. Revisa descripciones, cantidades, precios y fechas antes de guardar; el reconocimiento puede equivocarse.</string>
     <string name="saving">Guardando…</string>
     <string name="processing">Preparando tu documento</string>
-    <string name="processing_body">Leyendo el texto y preparando una copia ligera y legible. El original se conserva en este móvil. En PDF se reconoce solo la primera página.</string>
+    <string name="processing_body">Leyendo el texto y preparando una copia ligera y legible. El original se conserva en este móvil. En PDF se leen hasta diez páginas.</string>
+    <string name="ocr_partial">Lectura parcial: alguna página no se pudo leer o el documento supera el límite de diez páginas o de texto. El PDF completo se conserva. Revisa los datos con el original.</string>
     <string name="import_error">No se pudo importar. Usa una imagen válida o un PDF sin contraseña de hasta 25 MB y comprueba que tienes espacio libre.</string>
     <string name="duplicate_notice">Este justificante ya estaba guardado. No hemos duplicado el archivo.</string>
     <string name="ocr_failed">El documento está guardado. No se pudo reconocer el texto; puedes registrar la compra manualmente.</string>

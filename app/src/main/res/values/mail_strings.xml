@@ -12,7 +12,8 @@
     <string name="mail_loading">Consultando Gmail…</string>
     <string name="mail_empty">No se han encontrado adjuntos PDF o imagen compatibles. Cambia la búsqueda o usa Compartir desde tu correo.</string>
     <string name="mail_no_subject">Sin asunto</string>
-    <string name="mail_auth_error">Vuelve a conectar Gmail para renovar el acceso al correo.</string>
+    <string name="mail_auth_error">No se pudo autorizar Gmail. Si Google indica que la app no está verificada o bloquea el acceso, comprueba que usas una cuenta añadida a las pruebas del proyecto. Después vuelve a conectar Gmail.</string>
+    <string name="mail_testing_notice">Gmail está en fase de pruebas: la cuenta elegida debe estar autorizada en el proyecto. Google puede mostrar un aviso de aplicación no verificada.</string>
     <string name="mail_permission_error">Falta el permiso de lectura de Gmail. Puedes concederlo al conectar o importar mediante Compartir.</string>
     <string name="mail_disabled_error">Gmail todavía no está habilitado para este proyecto. Puedes importar el PDF mediante Compartir mientras se completa la configuración.</string>
     <string name="mail_rate_error">Google ha limitado temporalmente las consultas. Inténtalo más tarde.</string>

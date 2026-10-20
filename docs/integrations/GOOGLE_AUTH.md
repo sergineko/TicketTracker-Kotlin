@@ -1,6 +1,6 @@
 # Google Auth del piloto
 
-Configurado el 17/10/2026 con autorización del propietario en un proyecto independiente `TicketTracker`, ID `tickettracker-511912`. Estado externo **Prueba**, con la cuenta del propietario como único usuario de prueba. Sin facturación ni publicación en Google Play.
+Configurado el 17/10/2026 con autorización del propietario en un proyecto independiente `TicketTracker`, ID `tickettracker-511912`. Estado externo **Prueba**. El 20/10 se verificó la segunda cuenta del propietario tras aprobar su inventario privado; ambas figuran en usuarios de prueba. Sin facturación ni publicación en Google Play. Detalles en GMAIL_DEPLOYMENT.md.
 
 | Cliente | Uso | Identificador público |
 | --- | --- | --- |

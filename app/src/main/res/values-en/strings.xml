@@ -55,7 +55,7 @@
     <string name="in_store">In store</string>
     <string name="online">Online</string>
     <string name="other">Other</string>
-    <string name="order_number">Order number (optional)</string>
+    <string name="order_number">Order or invoice reference (optional)</string>
     <string name="notes">Notes</string>
     <string name="items">Items</string>
     <string name="item_number">Item %1$d</string>
@@ -73,10 +73,11 @@
     <string name="receipt_section">Receipts</string>
     <string name="attach_existing">Attach saved document</string>
     <string name="document_saved_separately">Imported documents stay in Documents even if you leave without saving the purchase.</string>
-    <string name="extracted_notice">We found these details. Review them before saving; recognition can make mistakes. Add items manually.</string>
+    <string name="extracted_notice">We found these details and items. Review descriptions, quantities, prices and dates before saving; recognition can make mistakes.</string>
     <string name="saving">Saving…</string>
     <string name="processing">Preparing your document</string>
-    <string name="processing_body">Reading text and preparing a small, readable copy. The original stays on this phone. PDF recognition covers only the first page.</string>
+    <string name="processing_body">Reading text and preparing a small, readable copy. The original stays on this phone. Up to ten PDF pages are read.</string>
+    <string name="ocr_partial">Partial reading: a page could not be read, or the document exceeds the ten-page or text limit. The complete PDF is preserved. Check the details against the original.</string>
     <string name="import_error">Import failed. Use a valid image or a password-free PDF up to 25 MB and check available storage.</string>
     <string name="duplicate_notice">This receipt was already saved. The file was not duplicated.</string>
     <string name="ocr_failed">Document saved. Text recognition failed; you can enter the purchase manually.</string>

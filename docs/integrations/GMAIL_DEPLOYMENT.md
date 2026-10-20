@@ -27,3 +27,9 @@ Comprobado: consola muestra Gmail API «Habilitada»; Acceso a los datos confirm
 La validación móvil consiste en conectar Gmail, buscar un ticket y elegir un PDF/imagen. La lectura del ticket aportado, transportes controlados, límites y aislamiento se prueban localmente; no equivalen a una lectura real del buzón. Los mensajes con solo enlaces no están soportados en esta versión. Las restricciones de Google para apps no verificadas siguen vigentes.
 
 Si se decide retirar la función, el usuario puede retirar el permiso Gmail desde la app o su cuenta Google. También pueden quitarse el alcance declarado y deshabilitarse Gmail API en el mismo proyecto mediante un nuevo cambio autorizado. La sesión de TicketTracker y el inventario local son independientes.
+
+## Segunda cuenta de pruebas en 0.1.5
+
+El propietario aprobó el inventario privado .local/gmail-test-user-inventory.md para admitir la segunda cuenta con la que intentó importar correo. Se comprobó en consola que figuran ambas cuentas y continúa el modo Prueba; no se creó una entrada duplicada al observar que el alta ya estaba aplicada. Captura: .local/invoice-validation/gmail-test-users-verified.png. Las direcciones completas no se versionan en este añadido.
+
+Esta autorización no completa la verificación pública de Google. La app explica la restricción de cuentas de pruebas y el posible aviso de aplicación no verificada. No se consultó el buzón del propietario; consentimiento e importación reales desde el móvil siguen pendientes de prueba por su parte.

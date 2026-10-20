@@ -121,6 +121,7 @@ fun TicketTrackerApp(
                             if (event.duplicate) R.string.duplicate_notice
                             else if (event.optimizationFailed) R.string.image_optimization_failed
                             else if (event.ocrFailed) R.string.ocr_failed
+                            else if (event.partialRead) R.string.ocr_partial
                             else R.string.import_success
                         )
                     )

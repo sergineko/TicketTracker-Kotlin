@@ -58,6 +58,7 @@ data class EditorState(
     val extracted: Boolean = false,
     val printedDeadlines: List<PrintedDeadline> = emptyList(),
     val dateEdited: Boolean = false,
+    val partialRead: Boolean = false,
 )
 
 enum class EditorError {
@@ -81,6 +82,7 @@ sealed interface UiEvent {
         val ocrFailed: Boolean,
         val optimizationFailed: Boolean = false,
         val review: Boolean = true,
+        val partialRead: Boolean = false,
     ) : UiEvent
 
     data class Message(val key: String) : UiEvent
@@ -412,6 +414,7 @@ constructor(
                             imported.ocrFailed,
                             imported.optimizationFailed,
                             saved.purchaseId == null,
+                            imported.partialRead,
                         )
                     )
                 } catch (cancelled: CancellationException) {
@@ -436,7 +439,11 @@ constructor(
 
     private fun applyImport(result: ImportResult) = edit { old ->
         old.withExtraction(result.extraction)
-            .copy(documentIds = (old.documentIds + result.document.id).distinct(), extracted = true)
+            .copy(
+                documentIds = (old.documentIds + result.document.id).distinct(),
+                extracted = true,
+                partialRead = old.partialRead || result.partialRead,
+            )
     }
 
     fun export(uri: Uri) =
@@ -503,6 +510,8 @@ internal fun EditorState.withExtraction(extraction: ReceiptExtraction): EditorSt
                 extractedTotal?.let { TrackerViewModel.decimal(it.minorUnits) }.orEmpty()
             },
         currency = if (adoptCurrency) extractedTotal?.currency ?: currency else currency,
+        order = order.ifBlank { extraction.reference?.value.orEmpty() },
+        delivered = delivered.ifBlank { extraction.deliveredOn?.value?.toString().orEmpty() },
         lines =
             if (original == null && emptyLines && extraction.items.isNotEmpty())
                 extraction.items.map {

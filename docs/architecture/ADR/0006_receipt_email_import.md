@@ -1,5 +1,7 @@
 # ADR 0006 Lectura de tickets y correo opcional
 
+El límite de una página descrito aquí fue ampliado en 0.1.5 por ADR 0007. La autorización Gmail continúa separada del login.
+
 20/10/2026. El propietario pide corregir la lectura del ticket digital aportado y elige buscar en Gmail y permitir Compartir.
 
 El OCR sigue siendo local. Las posiciones de las palabras reconstruyen filas físicas antes de interpretar comercio, fecha, total y columnas de artículos. Las capturas pequeñas se amplían solo en memoria para reconocer texto; el original permanece intacto. Cabeceras de empresa con CIF no se descartan como si fueran una dirección. La extracción distingue el total de compra del resumen de IVA y comprueba cantidad × precio unitario cuando se imprimen ambos importes. Una cabecera con cantidad, precio unitario e importe puede identificarse aunque «Descripción» contenga un error de OCR. No se inventan fechas ni plazos jurídicos. El formulario conserva las correcciones escritas y deja vacía una fecha no reconocida.

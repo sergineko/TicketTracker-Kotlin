@@ -1,8 +1,7 @@
 package es.sergiotech.tickettracker.domain
 
+import java.text.Normalizer
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.ResolverStyle
 
 data class ExtractedField<T>(val value: T, val confidence: Float)
 
@@ -26,32 +25,20 @@ data class ReceiptExtraction(
     val total: ExtractedField<Money>? = null,
     val items: List<ReceiptItem> = emptyList(),
     val deadlines: List<PrintedDeadline> = emptyList(),
+    val reference: ExtractedField<String>? = null,
+    val deliveredOn: ExtractedField<LocalDate>? = null,
 )
 
 /** Conservative, deterministic extraction. Unlabelled prices and ambiguous dates stay empty. */
 class ReceiptExtractor {
     fun extract(text: String): ReceiptExtraction {
         val lines =
-            text
+            Normalizer.normalize(text, Normalizer.Form.NFKC)
                 .lineSequence()
                 .map { it.trim().replace(Regex("[\\t\\u00a0 ]+"), " ") }
                 .filter(String::isNotEmpty)
                 .toList()
         val merchant = merchant(lines)
-        val purchaseLines = lines.filterNot { policy.containsMatchIn(it) }
-        val labelledDates =
-            purchaseLines
-                .filter {
-                    Regex(
-                            "(?i)^(?:fecha(?: de (?:compra|emisi[oó]n))?|purchase date|date)\\s*[:=-]?\\s*\\d"
-                        )
-                        .containsMatchIn(it)
-                }
-                .flatMap(::dates)
-                .distinct()
-        val dates =
-            if (labelledDates.isNotEmpty()) labelledDates
-            else purchaseLines.flatMap(::dates).distinct()
         val currencies =
             Regex("(?i)\\b(?:EUR|USD|GBP)\\b|[€$£]")
                 .findAll(text)
@@ -67,50 +54,81 @@ class ReceiptExtractor {
                 .distinct()
                 .toList()
         val currency = currencies.singleOrNull() ?: "EUR"
-        val totalCandidates =
-            lines
-                .mapIndexedNotNull { index, line ->
-                    val label = totalLabel.find(line) ?: return@mapIndexedNotNull null
-                    var remaining = line.substring(label.range.last + 1).trim()
-                    if (remaining.isEmpty()) remaining = lines.getOrNull(index + 1).orEmpty()
-                    // A VAT summary has several amounts; it is not a new purchase total.
-                    val values = amount.findAll(remaining).toList()
-                    if (
-                        values.size != 1 ||
-                            remaining
-                                .replace(amount, "")
-                                .replace(Regex("(?i)EUR|USD|GBP|[€$£():= -]"), "")
-                                .isNotBlank()
-                    )
-                        return@mapIndexedNotNull null
-                    if (currencies.size > 1) null else Money.parse(values.single().value, currency)
-                }
-                .distinct()
         val header = lines.indexOfFirst(::isTableHeader)
-        val itemLines =
-            if (header < 0) lines
-            else lines.drop(header + 1).takeWhile { !tableEnd.containsMatchIn(it) }
         return ReceiptExtraction(
             merchant,
-            dates.singleOrNull()?.let { ExtractedField(it, 0.65f) },
-            totalCandidates.singleOrNull()?.let { ExtractedField(it, 0.85f) },
-            itemLines
-                .mapNotNull { item(it, currency, currencies.size <= 1, header >= 0) }
-                .take(100),
+            ReceiptFields.purchaseDate(lines)?.let { ExtractedField(it, 0.75f) },
+            ReceiptFields.total(lines, currency, currencies.size <= 1)?.let {
+                ExtractedField(it, 0.85f)
+            },
+            if (header < 0)
+                lines.mapNotNull { item(it, currency, currencies.size <= 1, false) }.take(100)
+            else tableItems(lines, currency, currencies.size <= 1),
             printedDeadlines(lines),
+            ReceiptFields.reference(lines)?.let { ExtractedField(it, .8f) },
+            ReceiptFields.deliveryDate(lines)?.let { ExtractedField(it, .75f) },
         )
     }
 
-    private fun dates(text: String): List<LocalDate> =
-        datePattern
-            .findAll(text)
-            .mapNotNull {
-                runCatching { LocalDate.parse(it.value.replace('-', '/'), dateFormat) }.getOrNull()
+    private fun dates(text: String): List<LocalDate> = ReceiptFields.dates(text)
+
+    private fun tableItems(
+        lines: List<String>,
+        currency: String,
+        knownCurrency: Boolean,
+    ): List<ReceiptItem> {
+        val result = mutableListOf<ReceiptItem>()
+        var active = false
+        var invoice: InvoiceRow? = null
+        var pending = ""
+        for ((index, line) in lines.withIndex()) {
+            if (isTableHeader(line)) {
+                active = true
+                invoice = if (InvoiceRow.matches(line)) InvoiceRow(line) else null
+                pending = ""
+                continue
             }
-            .toList()
+            if (!active) continue
+            if (tableEnd.containsMatchIn(line)) {
+                active = false
+                continue
+            }
+            if (InvoiceRow.isCharge(line)) continue
+            val layout = invoice
+            val parsed =
+                if (layout == null) item(line, currency, knownCurrency, true)
+                else layout.parse(line, currency, knownCurrency, pending)
+            if (parsed != null) {
+                result += parsed
+                pending = ""
+            } else if (
+                layout != null && !amount.containsMatchIn(line) && InvoiceRow.isContinuation(line)
+            ) {
+                if (
+                    Regex("^\\d+\\s+").containsMatchIn(line) ||
+                        (pending.isBlank() &&
+                            InvoiceRow.isPriceOnly(lines.getOrNull(index + 1).orEmpty()))
+                )
+                    pending = layout.namePrefix(line)
+                else if (pending.isNotBlank()) pending = (pending + " " + line).take(200)
+                else if (result.isEmpty()) pending = layout.namePrefix(line)
+                else
+                    result[result.lastIndex] =
+                        result.last().copy(name = (result.last().name + " " + line).take(200))
+            }
+        }
+        return result.take(100)
+    }
 
     private fun merchant(lines: List<String>): ExtractedField<String>? {
-        val header = lines.takeWhile { !isTableHeader(it) }.take(12)
+        val header =
+            lines
+                .takeWhile {
+                    !isTableHeader(it) &&
+                        !Regex("(?i)^(?:datos\\s+de\\s+cliente|cliente\\b|bill\\s+to|customer\\b)")
+                            .containsMatchIn(it)
+                }
+                .take(20)
         val company = Regex("(?i)^(.+?)[, ]+S\\s*\\.?\\s*[AL]\\s*\\.?(?:[ ,;].*)?$")
         header.forEach { line ->
             company.matchEntire(line)?.groupValues?.get(1)?.trim(' ', ',')?.let {
@@ -138,7 +156,7 @@ class ReceiptExtractor {
         priceKnown: Boolean,
         table: Boolean,
     ): ReceiptItem? {
-        if (Regex("[-−]\\s*\\d").containsMatchIn(line)) return null
+        if (Regex("(?<![\\p{L}\\d])[-−]\\s*\\d").containsMatchIn(line)) return null
         if (
             policy.containsMatchIn(line) ||
                 (!table && excludedItem.containsMatchIn(line)) ||
@@ -165,9 +183,10 @@ class ReceiptExtractor {
             name = quantityMatch?.groupValues?.get(2)?.trim() ?: name
             if (name.length !in 3..200 || name.count(Char::isLetter) < 3 || quantity !in 1..999)
                 return null
-            val lineTotal = if (priceKnown) Money.parse(matches.last().value, currency) else null
+            val lineTotal =
+                if (priceKnown) ReceiptFields.money(matches.last().value, currency) else null
             val each =
-                if (matches.size == 2 && priceKnown) Money.parse(first.value, currency)
+                if (matches.size == 2 && priceKnown) ReceiptFields.money(first.value, currency)
                 else
                     lineTotal
                         ?.takeIf { it.minorUnits % quantity == 0L }
@@ -183,13 +202,13 @@ class ReceiptExtractor {
         }
         val match =
             Regex(
-                    "^(.+?)\\s+(\\d{1,9}[.,]\\d{2})\\s*(?:EUR|USD|GBP|€|\\$|£)?$",
+                    "^(.+?)\\s+(${amount.pattern})\\s*(?:EUR|USD|GBP|€|\\$|£)?$",
                     RegexOption.IGNORE_CASE,
                 )
                 .matchEntire(line) ?: return null
         var name = match.groupValues[1].trim()
         var quantity = 1
-        var price = if (priceKnown) Money.parse(match.groupValues[2], currency) else null
+        var price = if (priceKnown) ReceiptFields.money(match.groupValues[2], currency) else null
         val unit =
             Regex("^(.+?)\\s+(\\d{1,3})\\s*[x×]\\s*(\\d{1,9}[.,]\\d{2})$", RegexOption.IGNORE_CASE)
                 .matchEntire(name)
@@ -243,27 +262,21 @@ class ReceiptExtractor {
 
     companion object {
         private fun isTableHeader(line: String): Boolean =
-            tableHeader.containsMatchIn(line) ||
-                (Regex("(?i)\\b(?:cnt|cant|cantidad|qty)\\.?(?:\\s|$)").containsMatchIn(line) &&
-                    Regex("(?i)\\bp\\.?\\s*unit\\b").containsMatchIn(line) &&
-                    Regex("(?i)\\b(?:importe|amount)\\b").containsMatchIn(line))
+            !ReceiptFields.amount.containsMatchIn(line) &&
+                (tableHeader.containsMatchIn(line) ||
+                    (Regex("(?i)\\b(?:cnt|cant|cantidad|qty)\\.?(?:\\s|$)").containsMatchIn(line) &&
+                        Regex("(?i)\\bp\\.?\\s*unit\\b").containsMatchIn(line) &&
+                        Regex("(?i)\\b(?:importe|amount)\\b").containsMatchIn(line)))
 
-        private val amount = Regex("(?<![\\d.,])\\d{1,9}[.,]\\d{2}(?!\\d)")
-        private val totalLabel =
-            Regex(
-                "(?i)^(?:importe\\s+)?total\\b(?:\\s+a\\s+pagar)?\\s*(?:\\(?\\s*(?:EUR|USD|GBP|€|\\$|£)\\s*\\)?)?\\s*[:=–-]?\\s*"
-            )
+        private val amount = ReceiptFields.amount
         private val tableHeader =
             Regex(
-                "(?i)\\b(?:descripci[oó]n|description|art[ií]culo|producto|item)\\b.*(?:importe|amount|precio|p\\.?\\s*unit)"
+                "(?i)\\b(?:descripci[oó]n|description|concepto|art[ií]culo|producto|item)\\b.*(?:importe|amount|precio|p\\.?\\s*unit|p\\.?\\s*v\\.?\\s*p|total)"
             )
         private val tableEnd =
             Regex(
-                "(?i)^(?:(?:importe\\s+)?total\\b|subtotal\\b|tarjeta\\b|efectivo\\b|iva\\b|base\\s+imp|pago\\b|payment\\b)"
+                "(?i)^(?:(?:importe\\s+)?total\\b|subtotal\\b|tarjeta\\b|efectivo\\b|(?:tipo\\s+)?iva\\b|base\\s+imp|cuota\\s+iva|importe\\s+a\\s+pagar|pago\\b|payment\\b)"
             )
-        private val datePattern = Regex("(?<!\\d)\\d{2}[/-]\\d{2}[/-]\\d{4}(?!\\d)")
-        private val dateFormat =
-            DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT)
         private val policy =
             Regex(
                 "(?i)garant[ií]a|warranty|devoluci[oó]n|returns?|entrega|delivery|caducidad|expiry"
