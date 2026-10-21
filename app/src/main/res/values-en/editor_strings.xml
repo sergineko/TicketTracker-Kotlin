@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="form_title">Register receipt</string>
+    <string name="form_save">Save purchase</string>
+    <string name="form_import_title">Start with your receipt</string>
+    <string name="form_import_body">Scan or import a photo or PDF to fill the form. You can also enter the details below.</string>
+    <string name="form_review_title">Review the detected details</string>
+    <string name="form_review_body">Check the merchant, date, total and items before saving. Tap an item to make corrections.</string>
+    <string name="form_file">Photo or PDF</string>
+    <string name="form_basics">Purchase details</string>
+    <string name="form_item_count">Items · %1$d</string>
+    <string name="form_item_summary">%1$s units · %2$s / unit</string>
+    <string name="form_price_unknown">No price</string>
+    <string name="form_unit_price">Price / unit (optional)</string>
+    <string name="form_coverage">Warranty and returns</string>
+    <string name="form_details">More: delivery, reference and notes</string>
+    <string name="form_date_hint">YYYY-MM-DD or DD/MM/YYYY</string>
+    <string name="form_name_error">Enter the item name.</string>
+    <string name="form_quantity_error">Use a quantity from 1 to 999.</string>
+    <string name="form_price_error">Check the price, for example 12.50.</string>
+    <string name="form_line_sum">Sum of items: %1$s</string>
+    <string name="form_use_sum">Use this sum as the total</string>
+    <string name="form_total_difference">The total differs from the items. It may include discounts, shipping or other charges; please review it.</string>
+    <string name="form_unreadable_rows">Some lines could not be converted into items. Check the receipt and add missing items; quantities have not been guessed.</string>
+</resources>

@@ -67,6 +67,10 @@ class PurchaseFlowTest {
         compose.onNodeWithTag("merchant").performTextInput(merchant)
         compose.onNodeWithTag("total").performTextInput("39,95")
         compose
+            .onNodeWithTag("purchase-date")
+            .performScrollTo()
+            .performTextReplacement("21/10/2026")
+        compose
             .onNodeWithTag("product-0")
             .performScrollTo()
             .performTextInput("Auriculares de prueba")

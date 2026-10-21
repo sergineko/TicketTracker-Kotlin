@@ -59,6 +59,7 @@ data class EditorState(
     val printedDeadlines: List<PrintedDeadline> = emptyList(),
     val dateEdited: Boolean = false,
     val partialRead: Boolean = false,
+    val unreadableRows: Boolean = false,
 )
 
 enum class EditorError {
@@ -281,30 +282,11 @@ constructor(
         fun fail(error: EditorError) {
             _editor.update { it.copy(error = error) }
         }
-        if (draft.merchant.isBlank() || draft.merchant.length > 200)
-            return fail(EditorError.MERCHANT)
-        val total = Money.parse(draft.total, draft.currency) ?: return fail(EditorError.TOTAL)
-        val date = date(draft.date) ?: return fail(EditorError.DATE)
-        val delivered =
-            if (draft.delivered.isBlank()) null
-            else date(draft.delivered) ?: return fail(EditorError.DELIVERY)
-        if (delivered != null && delivered < date) return fail(EditorError.DELIVERY)
-        if (
-            draft.lines.any {
-                it.name.isBlank() ||
-                    it.name.length > 200 ||
-                    it.quantity.toIntOrNull() !in 1..999 ||
-                    (it.price.isNotBlank() && Money.parse(it.price, draft.currency) == null)
-            }
-        )
-            return fail(EditorError.PRODUCT)
-        if (
-            draft.lines.any {
-                (it.warrantyEnd.isNotBlank() && date(it.warrantyEnd) == null) ||
-                    (it.returnEnd.isNotBlank() && date(it.returnEnd) == null)
-            }
-        )
-            return fail(EditorError.DEADLINE)
+        val problem = draft.problems().firstOrNull()
+        if (problem != null) return fail(problem.error)
+        val total = requireNotNull(Money.parse(draft.total, draft.currency))
+        val date = requireNotNull(date(draft.date))
+        val delivered = date(draft.delivered)
         val purchase =
             (draft.original
                     ?: Purchase(
@@ -476,8 +458,7 @@ constructor(
         }
 
     companion object {
-        private fun date(value: String): LocalDate? =
-            runCatching { LocalDate.parse(value) }.getOrNull()
+        private fun date(value: String): LocalDate? = editorDate(value)
 
         fun decimal(minor: Long) = java.math.BigDecimal.valueOf(minor, 2).toPlainString()
     }
@@ -528,6 +509,7 @@ internal fun EditorState.withExtraction(extraction: ReceiptExtraction): EditorSt
                     )
                 }
             else lines,
+        unreadableRows = unreadableRows || extraction.unreadableTableRows > 0,
         printedDeadlines =
             (printedDeadlines + extraction.deadlines)
                 .distinct()

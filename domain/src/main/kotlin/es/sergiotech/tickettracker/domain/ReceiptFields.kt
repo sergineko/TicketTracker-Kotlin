@@ -1,19 +1,12 @@
 package es.sergiotech.tickettracker.domain
 
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.ResolverStyle
 
 /** Shared lexical rules for labelled fields; payment balances are not purchase totals. */
 internal object ReceiptFields {
     val amount =
         Regex("(?<![\\d.,])(?:\\d{1,3}(?:[.,][ \\t]*\\d{3})+|\\d{1,9})[.,][ \\t]*\\d{2}(?![\\d.,])")
-    private val date =
-        Regex(
-            "(?<![\\p{L}\\d])(?:\\d{4}\\s*-\\s*\\d{2}\\s*-\\s*\\d{2}|\\d{2}\\s*[./-]\\s*\\d{2}\\s*[./-]\\s*\\d{4})(?![\\p{L}\\d])"
-        )
-    private val civil =
-        DateTimeFormatter.ofPattern("dd/MM/uuuu").withResolverStyle(ResolverStyle.STRICT)
+    private val date = Regex(ReceiptDates.pattern)
     private val primaryDate =
         Regex(
             "(?i)(?:fecha\\s+(?:de\\s+)?(?:factura|compra|emisi[oó]n|venta)|invoice\\s+date|purchase\\s+date|issued\\s+on)\\s*[:=-]?\\s*"
@@ -27,18 +20,7 @@ internal object ReceiptFields {
             "(?i)garant[ií]a|warranty|devoluci[oó]n|returns?|entrega|delivery|caducidad|expiry|fecha de pago|payment date|vencimiento|due date"
         )
 
-    fun dates(text: String): List<LocalDate> =
-        date
-            .findAll(text)
-            .mapNotNull { match ->
-                runCatching {
-                        val value = match.value.filterNot(Char::isWhitespace)
-                        if (value[4] == '-') LocalDate.parse(value)
-                        else LocalDate.parse(value.replace('.', '/').replace('-', '/'), civil)
-                    }
-                    .getOrNull()
-            }
-            .toList()
+    fun dates(text: String): List<LocalDate> = ReceiptDates.read(text)
 
     private fun labelledDates(lines: List<String>, label: Regex): List<LocalDate> =
         lines
@@ -131,12 +113,12 @@ internal object ReceiptFields {
         if (!knownCurrency) return null
         val strong =
             Regex(
-                "(?i)^(?:importe\\s+total|total\\s+(?:factura|de\\s+(?:la\\s+)?factura|compra|general|documento|con\\s+iva|iva\\s+incluido)|grand\\s+total|invoice\\s+total)\\b\\s*[:=-]?\\s*"
+                "(?i)^(?:importe\\s+total|total\\s+(?:factura|ticket|venta|de\\s+(?:la\\s+)?factura|compra|general|documento|con\\s+iva|iva\\s+incluido)|grand\\s+total|invoice\\s+total)\\b\\s*[:=-]?\\s*"
             )
         val standard = Regex("(?i)^(?:importe\\s+)?total\\b\\s*[:=-]?\\s*")
         val balance =
             Regex(
-                "(?i)^(?:importe\\s+a\\s+pagar|total\\s+a\\s+pagar|amount\\s+due|balance\\s+due)\\b\\s*[:=-]?\\s*"
+                "(?i)^(?:importe\\s+a\\s+pagar|(?:total\\s+)?a\\s+(?:pagar|cobrar|abonar)|amount\\s+due|balance\\s+due)\\b\\s*[:=-]?\\s*"
             )
         val candidates =
             lines.mapIndexedNotNull { index, line ->

@@ -27,6 +27,7 @@ data class ReceiptExtraction(
     val deadlines: List<PrintedDeadline> = emptyList(),
     val reference: ExtractedField<String>? = null,
     val deliveredOn: ExtractedField<LocalDate>? = null,
+    val unreadableTableRows: Int = 0,
 )
 
 /** Conservative, deterministic extraction. Unlabelled prices and ambiguous dates stay empty. */
@@ -55,6 +56,7 @@ class ReceiptExtractor {
                 .toList()
         val currency = currencies.singleOrNull() ?: "EUR"
         val header = lines.indexOfFirst(::isTableHeader)
+        val table = if (header < 0) null else tableItems(lines, currency, currencies.size <= 1)
         return ReceiptExtraction(
             merchant,
             ReceiptFields.purchaseDate(lines)?.let { ExtractedField(it, 0.75f) },
@@ -63,20 +65,25 @@ class ReceiptExtractor {
             },
             if (header < 0)
                 lines.mapNotNull { item(it, currency, currencies.size <= 1, false) }.take(100)
-            else tableItems(lines, currency, currencies.size <= 1),
+            else table!!.items,
             printedDeadlines(lines),
             ReceiptFields.reference(lines)?.let { ExtractedField(it, .8f) },
             ReceiptFields.deliveryDate(lines)?.let { ExtractedField(it, .75f) },
+            table?.unreadable ?: 0,
         )
     }
 
     private fun dates(text: String): List<LocalDate> = ReceiptFields.dates(text)
 
+    private data class TableRead(val items: List<ReceiptItem>, val unreadable: Int)
+
     private fun tableItems(
         lines: List<String>,
         currency: String,
         knownCurrency: Boolean,
-    ): List<ReceiptItem> {
+    ): TableRead {
+        var unreadable = 0
+        var adaptive: AdaptiveReceiptTable? = null
         val result = mutableListOf<ReceiptItem>()
         var active = false
         var invoice: InvoiceRow? = null
@@ -85,6 +92,7 @@ class ReceiptExtractor {
             if (isTableHeader(line)) {
                 active = true
                 invoice = if (InvoiceRow.matches(line)) InvoiceRow(line) else null
+                adaptive = AdaptiveReceiptTable.from(line)
                 pending = ""
                 continue
             }
@@ -95,29 +103,39 @@ class ReceiptExtractor {
             }
             if (InvoiceRow.isCharge(line)) continue
             val layout = invoice
+            val planned =
+                adaptive?.takeIf { pending.isBlank() }?.parse(line, currency, knownCurrency)
             val parsed =
-                if (layout == null) item(line, currency, knownCurrency, true)
-                else layout.parse(line, currency, knownCurrency, pending)
+                planned
+                    ?: if (adaptive?.mayUseLegacy(line) != false) {
+                        if (layout == null) item(line, currency, knownCurrency, true)
+                        else layout.parse(line, currency, knownCurrency, pending)
+                    } else null
             if (parsed != null) {
                 result += parsed
                 pending = ""
             } else if (
-                layout != null && !amount.containsMatchIn(line) && InvoiceRow.isContinuation(line)
+                (layout != null || adaptive != null) &&
+                    !amount.containsMatchIn(line) &&
+                    InvoiceRow.isContinuation(line)
             ) {
                 if (
                     Regex("^\\d+\\s+").containsMatchIn(line) ||
                         (pending.isBlank() &&
                             InvoiceRow.isPriceOnly(lines.getOrNull(index + 1).orEmpty()))
                 )
-                    pending = layout.namePrefix(line)
+                    pending = layout?.namePrefix(line) ?: line
                 else if (pending.isNotBlank()) pending = (pending + " " + line).take(200)
-                else if (result.isEmpty()) pending = layout.namePrefix(line)
+                else if (result.isEmpty()) pending = layout?.namePrefix(line) ?: line
                 else
                     result[result.lastIndex] =
                         result.last().copy(name = (result.last().name + " " + line).take(200))
+            } else if (amount.containsMatchIn(line) && line.count(Char::isLetter) >= 3) {
+                unreadable++
+                pending = ""
             }
         }
-        return result.take(100)
+        return TableRead(result.take(100), unreadable + maxOf(0, result.size - 100))
     }
 
     private fun merchant(lines: List<String>): ExtractedField<String>? {
@@ -129,6 +147,18 @@ class ReceiptExtractor {
                             .containsMatchIn(it)
                 }
                 .take(20)
+        val issuer =
+            Regex(
+                "(?i)^(?:establecimiento|comercio|proveedor|emisor|vendedor|supplier|seller|issued by)\\s*[:=-]\\s*(.+)$"
+            )
+        header
+            .mapNotNull { issuer.matchEntire(it)?.groupValues?.get(1)?.trim() }
+            .distinct()
+            .singleOrNull()
+            ?.takeIf { it.length in 3..100 }
+            ?.let {
+                return ExtractedField(it, .9f)
+            }
         val company = Regex("(?i)^(.+?)[, ]+S\\s*\\.?\\s*[AL]\\s*\\.?(?:[ ,;].*)?$")
         header.forEach { line ->
             company.matchEntire(line)?.groupValues?.get(1)?.trim(' ', ',')?.let {
@@ -140,7 +170,9 @@ class ReceiptExtractor {
             .firstOrNull { line ->
                 line.length in 3..100 &&
                     line.count(Char::isLetter) >= 3 &&
-                    !line.any(Char::isDigit) &&
+                    dates(line).isEmpty() &&
+                    !amount.containsMatchIn(line) &&
+                    !line.first().isDigit() &&
                     !Regex(
                             "(?i)^(?:av(?:da)?\\.? |avenida |c/|calle |plaza |pza\\.? |paseo |carretera |ctra\\.? |tel[eé]fono|tel[.: ]|factura|ticket|receipt|fecha|date|cif|nif|https?|abrir con|open with)"
                         )
@@ -262,11 +294,13 @@ class ReceiptExtractor {
 
     companion object {
         private fun isTableHeader(line: String): Boolean =
-            !ReceiptFields.amount.containsMatchIn(line) &&
-                (tableHeader.containsMatchIn(line) ||
-                    (Regex("(?i)\\b(?:cnt|cant|cantidad|qty)\\.?(?:\\s|$)").containsMatchIn(line) &&
-                        Regex("(?i)\\bp\\.?\\s*unit\\b").containsMatchIn(line) &&
-                        Regex("(?i)\\b(?:importe|amount)\\b").containsMatchIn(line)))
+            AdaptiveReceiptTable.from(line) != null ||
+                (!ReceiptFields.amount.containsMatchIn(line) &&
+                    (tableHeader.containsMatchIn(line) ||
+                        (Regex("(?i)\\b(?:cnt|cant|cantidad|qty)\\.?(?:\\s|$)")
+                            .containsMatchIn(line) &&
+                            Regex("(?i)\\bp\\.?\\s*unit\\b").containsMatchIn(line) &&
+                            Regex("(?i)\\b(?:importe|amount)\\b").containsMatchIn(line))))
 
         private val amount = ReceiptFields.amount
         private val tableHeader =
@@ -275,7 +309,7 @@ class ReceiptExtractor {
             )
         private val tableEnd =
             Regex(
-                "(?i)^(?:(?:importe\\s+)?total\\b|subtotal\\b|tarjeta\\b|efectivo\\b|(?:tipo\\s+)?iva\\b|base\\s+imp|cuota\\s+iva|importe\\s+a\\s+pagar|pago\\b|payment\\b)"
+                "(?i)^(?:(?:importe\\s+)?total\\b|subtotal\\b|tarjeta\\b|efectivo\\b|(?:tipo\\s+)?iva\\b|base\\s+imp|cuota\\s+iva|importe\\s+a\\s+pagar|(?:total\\s+)?a\\s+(?:pagar|cobrar|abonar)\\b|pago\\b|payment\\b)"
             )
         private val policy =
             Regex(

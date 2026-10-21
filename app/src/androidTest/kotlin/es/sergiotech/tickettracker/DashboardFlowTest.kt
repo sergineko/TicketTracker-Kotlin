@@ -45,6 +45,7 @@ class DashboardFlowTest {
         }
         compose.waitForIdle()
         assertTrue(vm.editor.value.lines.all { it.returnEnd.isBlank() })
+        compose.onNodeWithTag("expand-item-0").performScrollTo().performClick()
         compose.onNodeWithTag("ocr-RETURN-0").performScrollTo().performClick()
         assertEquals("2026-11-17", vm.editor.value.lines[0].returnEnd)
         assertEquals("", vm.editor.value.lines[1].returnEnd)

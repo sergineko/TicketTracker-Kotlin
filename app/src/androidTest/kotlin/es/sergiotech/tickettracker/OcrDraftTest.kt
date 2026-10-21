@@ -64,4 +64,35 @@ class OcrDraftTest {
         assertEquals(old.currency, draft.currency)
         assertEquals(old.lines, draft.lines)
     }
+
+    @Test
+    fun unreadableRowsRemainVisibleInTheReviewAndNeverOverwriteTypedLines() {
+        val read =
+            ReceiptExtractor()
+                .extract(
+                    "TIENDA\nImporte Concepto Cantidad Precio\n12,00 PINTURA 0,5 24,00\n10,00 BROCHA 1 10,00\nTOTAL 22,00"
+                )
+        val typed = EditorState(lines = listOf(LineDraft(name = "Escrito")))
+        val result = typed.withExtraction(read)
+        assertTrue(result.unreadableRows)
+        assertEquals(typed.lines, result.lines)
+    }
+
+    @Test
+    fun validationAndSumsKeepDatesCivilAndTotalsIndependent() {
+        val draft =
+            EditorState(
+                merchant = "Tienda",
+                date = "21/10/2026",
+                total = "12.00",
+                delivered = "20/10/2026",
+                lines = listOf(LineDraft(name = "Cable", quantity = "2", price = "5.00")),
+            )
+        assertEquals(java.time.LocalDate.of(2026, 10, 21), editorDate(draft.date))
+        assertNull(editorDate("31/02/2026"))
+        assertEquals(Money(1000), draft.lineSum())
+        assertEquals("12.00", draft.total)
+        assertEquals(listOf(DraftProblem(DraftField.DELIVERY)), draft.problems())
+        assertNull(draft.copy(lines = listOf(LineDraft(name = "Cable"))).lineSum())
+    }
 }

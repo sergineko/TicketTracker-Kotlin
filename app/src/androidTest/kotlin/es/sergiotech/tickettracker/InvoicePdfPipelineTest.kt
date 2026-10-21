@@ -139,4 +139,38 @@ class InvoicePdfPipelineTest {
                 source.delete()
             }
         }
+
+    @Test
+    fun reorderedServiceColumnsAreReadThroughTheRealPdfPipeline() =
+        runTest(timeout = 120.seconds) {
+            val source =
+                pdf(
+                    listOf(
+                        listOf(
+                            "SERVICIOS EJEMPLO",
+                            "Fecha: 21 octubre 2026",
+                            "Importe Concepto Cantidad Precio",
+                            "40,00 REVISION BICICLETA 2 20,00",
+                            "A PAGAR 40,00 EUR",
+                        )
+                    )
+                )
+            val store = PrivateDocumentStore(context, nativePdfText = false)
+            try {
+                val result = store.import(uri(source))
+                try {
+                    assertEquals(LocalDate.of(2026, 10, 21), result.extraction.date?.value)
+                    assertEquals(Money(4000), result.extraction.total?.value)
+                    assertEquals(
+                        listOf(ReceiptItem("REVISION BICICLETA", 2, Money(2000))),
+                        result.extraction.items,
+                    )
+                    assertFalse(result.ocrFailed)
+                } finally {
+                    store.discardUncommitted(result.document)
+                }
+            } finally {
+                source.delete()
+            }
+        }
 }

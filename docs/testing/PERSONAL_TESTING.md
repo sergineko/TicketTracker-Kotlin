@@ -1,6 +1,6 @@
 # Prueba personal en Android
 
-La APK `TicketTracker-0.1.5-pruebas.apk` de `entregas/` está firmada con la misma clave debug del piloto Google. Es un APK universal para Android 10/API 29 o posterior. Tamaño 122928453 bytes; SHA-256 `ee259b42c9348fade03cdc8cde030fca7577e172a60e8557e8834b8d657de94a`. No es una publicación en Google Play. La release optimizada se compila por separado y no es el archivo de instalación entregado.
+La APK `TicketTracker-0.1.6-pruebas.apk` de `entregas/` está firmada con la misma clave debug del piloto Google. Es un APK universal para Android 10/API 29 o posterior. Tamaño 124110461 bytes; SHA-256 `eab3c80f39ae532405a6eedc8c05c12598fb38a0b9bd31927cb5da3e60726339`. No es una publicación en Google Play. La release optimizada se compila por separado y no es el archivo de instalación entregado.
 
 ## Instalar
 
@@ -9,6 +9,14 @@ La APK `TicketTracker-0.1.5-pruebas.apk` de `entregas/` está firmada con la mis
 3. Abre TicketTracker. Si ya tienes una versión firmada con la misma clave, instala como actualización. Si Android informa de una firma incompatible, conserva antes una exportación y no desinstales sin revisar los datos que puedes perder.
 
 La aplicación empieza con tu inventario real vacío; los productos de las capturas son fixtures de pruebas y no se incluyen en la APK.
+
+## Cambios del registro en 0.1.6
+
+Comienza con Escanear o Foto o PDF, o escribe directamente comercio, fecha y total. Las fechas manuales admiten DD/MM/AAAA, DD.MM.AAAA e ISO. La moneda está junto al total; entrega, referencia, canal y notas se abren en Más datos.
+
+Los artículos reconocidos aparecen plegados; toca uno para corregir nombre/cantidad/precio. Garantía y devolución son opciones del artículo. El botón Guardar compra permanece visible y los errores abren el campo correspondiente. Si todos los precios están completos, se muestra su suma: no modifica el total hasta pulsar Usar esta suma como total. Puedes guardar una diferencia justificada por descuentos o portes.
+
+Prueba también una factura de otro sector con columnas en distinto orden. El lector calcula el plan desde las etiquetas, sin seleccionar una marca. Las líneas que no se convierten muestran un aviso para completar manualmente. Cantidades fraccionarias y diseños ambiguos siguen necesitando revisión; no se ha acreditado precisión universal.
 
 ## Recorrido sugerido
 

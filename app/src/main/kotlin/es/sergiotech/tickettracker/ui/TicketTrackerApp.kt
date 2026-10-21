@@ -361,6 +361,7 @@ fun TicketTrackerApp(
                                     { nav.popBackStack() },
                                     ::startImport,
                                     { nav.navigate("scanner") },
+                                    openDocument,
                                 )
                             }
                             composable("scanner") {

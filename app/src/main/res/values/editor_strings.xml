@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="form_title">Registrar ticket</string>
+    <string name="form_save">Guardar compra</string>
+    <string name="form_import_title">Empieza por tu ticket</string>
+    <string name="form_import_body">Escanea o importa una foto o PDF para completar los datos. También puedes escribirlos abajo.</string>
+    <string name="form_review_title">Revisa los datos detectados</string>
+    <string name="form_review_body">Comprueba comercio, fecha, total y artículos antes de guardar. Toca un artículo para corregirlo.</string>
+    <string name="form_file">Foto o PDF</string>
+    <string name="form_basics">Datos de la compra</string>
+    <string name="form_item_count">Artículos · %1$d</string>
+    <string name="form_item_summary">%1$s uds. · %2$s / ud.</string>
+    <string name="form_price_unknown">Sin precio</string>
+    <string name="form_unit_price">Precio / ud. (opcional)</string>
+    <string name="form_coverage">Garantía y devolución</string>
+    <string name="form_details">Más datos: entrega, referencia y notas</string>
+    <string name="form_date_hint">AAAA-MM-DD o DD/MM/AAAA</string>
+    <string name="form_name_error">Escribe el nombre del artículo.</string>
+    <string name="form_quantity_error">Usa una cantidad entre 1 y 999.</string>
+    <string name="form_price_error">Revisa el precio, por ejemplo 12,50.</string>
+    <string name="form_line_sum">Suma de artículos: %1$s</string>
+    <string name="form_use_sum">Usar esta suma como total</string>
+    <string name="form_total_difference">El total difiere de los artículos. Puede incluir descuentos, envío u otros conceptos; revísalo.</string>
+    <string name="form_unreadable_rows">Hay líneas que no se han podido convertir en artículos. Revisa el justificante y añádelas si faltan; no se han inventado cantidades.</string>
+</resources>
