@@ -3,18 +3,18 @@ agp = "9.1.0"
 kotlin = "2.2.10"
 ksp = "2.3.6"
 hilt = "2.59.2"
-compose = "2026.02.01"
-room = "2.8.4"
+compose = "2026.09.00"
+room = "2.8.5"
 coroutines = "1.10.2"
 lifecycle = "2.10.0"
 camera = "1.5.3"
 
 [libraries]
-androidx-core = { module = "androidx.core:core-ktx", version = "1.17.0" }
+androidx-core = { module = "androidx.core:core-ktx", version = "1.19.1" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version = "1.12.4" }
 androidx-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime-compose", version.ref = "lifecycle" }
 androidx-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "lifecycle" }
-androidx-navigation = { module = "androidx.navigation:navigation-compose", version = "2.9.7" }
+androidx-navigation = { module = "androidx.navigation:navigation-compose", version = "2.10.2" }
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose" }
 compose-ui = { module = "androidx.compose.ui:ui" }
 compose-tooling = { module = "androidx.compose.ui:ui-tooling" }
@@ -34,7 +34,7 @@ coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", ve
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
 hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 datastore = { module = "androidx.datastore:datastore-preferences", version = "1.2.0" }
-work = { module = "androidx.work:work-runtime-ktx", version = "2.11.1" }
+work = { module = "androidx.work:work-runtime-ktx", version = "2.12.0" }
 mlkit-text = { module = "com.google.mlkit:text-recognition", version = "16.0.1" }
 exif = { module = "androidx.exifinterface:exifinterface", version = "1.4.2" }
 camera-core = { module = "androidx.camera:camera-camera2", version.ref = "camera" }
